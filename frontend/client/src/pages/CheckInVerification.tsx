@@ -21,6 +21,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import { api } from "@/lib/api";
 
 // Sample Available Rooms List for Selection
 const AVAILABLE_ROOMS = [
@@ -131,14 +132,9 @@ export default function CheckInVerification() {
     }
     setSendingReminder(true);
     try {
-      const res = await fetch("/api/checkin/send-3h-reminder", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reservationId: targetId }),
-      });
-      const data = await res.json();
+      const res = await api.post("/checkin/send-3h-reminder", { reservationId: targetId });
       setSendingReminder(false);
-      if (res.ok && data.success) {
+      if (res.data?.success) {
         toast.success(`Check-In Reminder notification sent 3 hours prior to check-in!`);
       } else {
         toast.success(`3-Hour prior check-in reminder notification dispatched to guest!`);
@@ -190,16 +186,14 @@ export default function CheckInVerification() {
 
   const fetchReservations = async (preferredResId?: string | null) => {
     try {
-      const res = await fetch("/api/reservations");
-      if (res.ok) {
-        const data = await res.json();
-        let items = data.items || data || [];
-        // Ensure reservations are strictly sorted in numeric sequential order by ID ascending
-        items = items.slice().sort((a: any, b: any) => Number(a.id) - Number(b.id));
-        setReservations(items);
-        if (preferredResId && items.some((i: any) => String(i.id) === String(preferredResId))) {
-          setSelectedResId(String(preferredResId));
-        }
+      const res = await api.get("/reservations");
+      const data = res.data;
+      let items = data.items || data || [];
+      // Ensure reservations are strictly sorted in numeric sequential order by ID ascending
+      items = items.slice().sort((a: any, b: any) => Number(a.id) - Number(b.id));
+      setReservations(items);
+      if (preferredResId && items.some((i: any) => String(i.id) === String(preferredResId))) {
+        setSelectedResId(String(preferredResId));
       }
     } catch (err) {
       console.error(err);
@@ -290,27 +284,22 @@ export default function CheckInVerification() {
           }
 
           try {
-            const verifyResponse = await fetch("/api/checkin/payment/verify", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              credentials: "include",
-              body: JSON.stringify({
-                razorpayOrderId: orderId,
-                razorpayPaymentId: paymentId,
-                razorpaySignature: signature,
-                razorpay_order_id: orderId,
-                razorpay_payment_id: paymentId,
-                razorpay_signature: signature,
-              }),
+            const verifyResponse = await api.post("/checkin/payment/verify", {
+              razorpayOrderId: orderId,
+              razorpayPaymentId: paymentId,
+              razorpaySignature: signature,
+              razorpay_order_id: orderId,
+              razorpay_payment_id: paymentId,
+              razorpay_signature: signature,
             });
-            const verifyData = await verifyResponse.json().catch(() => null);
-            if (!verifyResponse.ok || !verifyData?.success || verifyData.status !== "Paid") {
+            const verifyData = verifyResponse.data;
+            if (!verifyData?.success || verifyData.status !== "Paid") {
               await finish(false, verifyData?.error || "Payment verification failed.");
               return;
             }
             await finish(true);
-          } catch {
-            await finish(false, "Network error while verifying payment.");
+          } catch (err: any) {
+            await finish(false, err?.response?.data?.error || "Network error while verifying payment.");
           }
         },
         modal: { ondismiss: () => {
@@ -339,17 +328,13 @@ export default function CheckInVerification() {
     }
     setSubmittingBooking(true);
     try {
-      const res = await fetch("/api/checkin/book-with-payment", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...bookingData,
-          roomId: selectedRoom.id,
-        }),
+      const res = await api.post("/checkin/book-with-payment", {
+        ...bookingData,
+        roomId: selectedRoom.id,
       });
 
-      const data = await res.json();
-      if (res.ok && data.success) {
+      const data = res.data;
+      if (data.success) {
         await openRazorpayCheckout(data, data.reservation?.guest, async () => {
           toast.success("Payment verified successfully. Room booking confirmed!");
           setPaymentDone(true);
@@ -361,8 +346,8 @@ export default function CheckInVerification() {
       } else {
         toast.error(data.error || "Booking & Payment failed.");
       }
-    } catch (err) {
-      toast.error("Network error processing payment");
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error || "Network error processing payment");
     } finally {
       setSubmittingBooking(false);
     }
@@ -475,20 +460,16 @@ export default function CheckInVerification() {
     setVerificationResult(null);
 
     try {
-      const res = await fetch("/api/checkin/verify-id", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          reservationId: targetResId,
-          dlImageUrl: dlImage,
-          selfieImageUrl: selfieImage,
-        }),
+      const res = await api.post("/checkin/verify-id", {
+        reservationId: targetResId,
+        dlImageUrl: dlImage,
+        selfieImageUrl: selfieImage,
       });
 
-      const data = await res.json();
+      const data = res.data;
       setVerifying(false);
 
-      if (res.ok && data.success) {
+      if (data.success) {
         setVerificationResult({
           matchScore: data.matchScore || "92%",
           verificationStatus: data.verificationStatus || "VERIFIED",
@@ -512,12 +493,22 @@ export default function CheckInVerification() {
       }
     } catch (err: any) {
       setVerifying(false);
-      setVerificationResult({
-        matchScore: "40%",
-        verificationStatus: "REJECTED",
-        message: err.message || "Verification network error.",
-      });
-      toast.error("Network error during verification.");
+      const data = err?.response?.data;
+      if (data) {
+        setVerificationResult({
+          matchScore: data.matchScore || "45%",
+          verificationStatus: "REJECTED",
+          message: data.error || data.message || "Verification Failed! Driver License and Selfie facial features do not match.",
+        });
+        toast.error(data.error || data.message || "Identity verification failed!");
+      } else {
+        setVerificationResult({
+          matchScore: "40%",
+          verificationStatus: "REJECTED",
+          message: err.message || "Verification network error.",
+        });
+        toast.error("Network error during verification.");
+      }
     }
   };
 
@@ -531,16 +522,12 @@ export default function CheckInVerification() {
 
     setSubmittingBooking(true);
     try {
-      const res = await fetch("/api/checkin/process-payment", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          reservationId: selectedResId,
-        }),
+      const res = await api.post("/checkin/process-payment", {
+        reservationId: selectedResId,
       });
 
-      const data = await res.json();
-      if (!res.ok || !data.success) {
+      const data = res.data;
+      if (!data.success) {
         toast.error(data.error || "Unable to create payment order.");
         return;
       }
@@ -552,8 +539,8 @@ export default function CheckInVerification() {
         toast.success("Payment verified successfully. You can now complete check-in.");
         setStep(3);
       });
-    } catch (err) {
-      toast.error("Network error while creating payment order.");
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error || "Network error while creating payment order.");
     } finally {
       setSubmittingBooking(false);
     }
@@ -567,13 +554,9 @@ export default function CheckInVerification() {
     }
     setSubmittingBooking(true);
     try {
-      const res = await fetch("/api/checkin/manual-payment", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reservationId: selectedResId, method }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data.success) {
+      const res = await api.post("/checkin/manual-payment", { reservationId: selectedResId, method });
+      const data = res.data;
+      if (!data.success) {
         toast.error(data.error || "Unable to record payment.");
         return;
       }
@@ -582,8 +565,8 @@ export default function CheckInVerification() {
       qc.invalidateQueries({ queryKey: ["reservations"] });
       toast.success(data.message || "Payment recorded. You can now complete check-in.");
       setStep(3);
-    } catch (err) {
-      toast.error("Network error while recording payment.");
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error || "Network error while recording payment.");
     } finally {
       setSubmittingBooking(false);
     }
@@ -595,16 +578,12 @@ export default function CheckInVerification() {
     setCompletingCheckIn(true);
 
     try {
-      const res = await fetch("/api/checkin/complete", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reservationId: selectedResId }),
-      });
+      const res = await api.post("/checkin/complete", { reservationId: selectedResId });
 
-      const data = await res.json().catch(() => ({}));
+      const data = res.data;
       setCompletingCheckIn(false);
 
-      if (!res.ok || !data.success) {
+      if (!data.success) {
         toast.error(data.error || "Unable to complete check-in.");
         return;
       }
@@ -618,9 +597,9 @@ export default function CheckInVerification() {
       qc.invalidateQueries({ queryKey: ["rooms"] });
       qc.invalidateQueries({ queryKey: ["dashboard"] });
       fetchReservations();
-    } catch (err) {
+    } catch (err: any) {
       setCompletingCheckIn(false);
-      toast.error("Network error while completing check-in.");
+      toast.error(err?.response?.data?.error || "Network error while completing check-in.");
     }
   };
 
@@ -629,13 +608,9 @@ export default function CheckInVerification() {
     if (!selectedResId) return;
     setGeneratingKey(true);
     try {
-      const res = await fetch("/api/checkin/generate-lock-key", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reservationId: selectedResId }),
-      });
+      const res = await api.post("/checkin/generate-lock-key", { reservationId: selectedResId });
 
-      const data = await res.json();
+      const data = res.data;
       setGeneratingKey(false);
 
       const resIdNum = Number(selectedResId) || 1;
@@ -652,7 +627,7 @@ export default function CheckInVerification() {
       setDigitalKeyGenerated(true);
       toast.success("Digital Room Key & Access PIN generated!");
 
-      if (res.ok && data.success) {
+      if (data.success) {
         qc.invalidateQueries({ queryKey: ["reservations"] });
         qc.invalidateQueries({ queryKey: ["payments"] });
         qc.invalidateQueries({ queryKey: ["rooms"] });
@@ -678,19 +653,15 @@ export default function CheckInVerification() {
     if (!selectedResId) return;
     setUnlocking(true);
     try {
-      const res = await fetch("/api/checkin/unlock-door", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          reservationId: selectedResId,
-          digitalPin: keyDetails?.digitalPin,
-        }),
+      const res = await api.post("/checkin/unlock-door", {
+        reservationId: selectedResId,
+        digitalPin: keyDetails?.digitalPin,
       });
 
-      const data = await res.json();
+      const data = res.data;
       setUnlocking(false);
 
-      if (res.ok && data.success) {
+      if (data.success) {
         setDoorStatus("UNLOCKED");
         toast.success(data.message || "Door unlocked successfully! Access granted.");
         setTimeout(() => setDoorStatus("LOCKED"), 4000);

@@ -5,7 +5,7 @@ import axios from "axios";
 // Falls back to the relative "/api" path used by the local dev proxy in vite.config.ts.
 const apiUrl = import.meta.env.VITE_API_BASE_URL || "/api";
 
-const api = axios.create({
+export const api = axios.create({
   baseURL: apiUrl,
   headers: { "Content-Type": "application/json" },
   withCredentials: true,
