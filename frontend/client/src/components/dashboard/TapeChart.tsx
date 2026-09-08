@@ -211,7 +211,7 @@ export default function TapeChart({ rooms, reservations, startDate, days, guests
               key={room.id}
               className={`flex border-b border-slate-200/70 transition-colors ${
                 dragOverRoom === room.id
-                  ? "bg-sky-50/70"
+                  ? "bg-[#F3EDE4]/80"
                   : "hover:bg-slate-50/70"
               }`}
               onDragOver={(e) => handleDragOver(e, room.id)}

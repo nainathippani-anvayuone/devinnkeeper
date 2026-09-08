@@ -156,14 +156,14 @@ function DigitalKeyPage({
           <div
             key={i}
             className={`h-1 rounded-full transition-all ${
-              i === 5 ? "flex-1 bg-blue-600" : "flex-1 bg-blue-200 dark:bg-blue-900"
+              i === 5 ? "flex-1 bg-[#8B6748]" : "flex-1 bg-[#C4A882] dark:bg-[#6B4F34]"
             }`}
           />
         ))}
       </div>
 
       {/* Blue Hotel Room Key Card */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-600 via-blue-500 to-indigo-600 text-white p-5 shadow-xl shadow-blue-500/30">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#8B6748] via-[#7A5A3C] to-[#5C3D2E] text-white p-5 shadow-xl shadow-[#8B6748]/30">
         {/* Decorative circle */}
         <div className="absolute -right-8 -top-8 w-32 h-32 rounded-full bg-white/10" />
         <div className="absolute -right-2 top-8 w-16 h-16 rounded-full bg-white/10" />
@@ -171,8 +171,8 @@ function DigitalKeyPage({
         <div className="relative z-10 space-y-4">
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-[10px] font-black uppercase tracking-widest text-blue-100">INNKEEPER MOTOR LODGE</p>
-              <p className="text-xs text-blue-200 mt-0.5">Digital room key</p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-[#F3EDE4]">INNKEEPER MOTOR LODGE</p>
+              <p className="text-xs text-[#E8DED2] mt-0.5">Digital room key</p>
             </div>
             {/* Toggle switch */}
             <div
@@ -190,14 +190,14 @@ function DigitalKeyPage({
           </div>
 
           <div>
-            <p className="text-[10px] text-blue-200 uppercase tracking-wider">Room</p>
+            <p className="text-[10px] text-[#E8DED2] uppercase tracking-wider">Room</p>
             <p className="text-5xl font-black tracking-wide mt-0.5">{roomNum}</p>
           </div>
 
           <div className="flex items-end justify-between">
-            <p className="text-[10px] text-blue-200">{guestName}</p>
+            <p className="text-[10px] text-[#E8DED2]">{guestName}</p>
             <div className="text-right">
-              <p className="text-[10px] text-blue-200">Valid until</p>
+              <p className="text-[10px] text-[#E8DED2]">Valid until</p>
               <p className="text-xs font-bold">{checkoutDate}</p>
             </div>
           </div>
@@ -209,7 +209,7 @@ function DigitalKeyPage({
         <button
           onClick={() => setShowQR(false)}
           className={`flex items-center gap-1.5 text-xs font-semibold ${
-            !showQR ? "text-blue-600" : "text-gray-400"
+            !showQR ? "text-[#8B6748]" : "text-gray-400"
           }`}
         >
           <Bluetooth className="w-3.5 h-3.5" />
@@ -218,7 +218,7 @@ function DigitalKeyPage({
         <button
           onClick={() => setShowQR(true)}
           className={`flex items-center gap-1.5 text-xs font-semibold ${
-            showQR ? "text-blue-600" : "text-gray-400"
+            showQR ? "text-[#8B6748]" : "text-gray-400"
           }`}
         >
           <QrCode className="w-3.5 h-3.5" />
@@ -261,7 +261,7 @@ function DigitalKeyPage({
             <rect x="20" y="23" width="4" height="2" fill="currentColor" />
           </svg>
           <p className="text-xs text-gray-500 font-medium">Scan to authenticate room access</p>
-          <p className="font-mono text-xl font-black text-blue-600">{pin}</p>
+          <p className="font-mono text-xl font-black text-[#8B6748]">{pin}</p>
         </div>
       ) : (
         /* Door unlock section */
@@ -275,14 +275,14 @@ function DigitalKeyPage({
                 unlockStep === 5
                   ? "bg-emerald-100 border-2 border-emerald-400"
                   : isUnlocking
-                  ? "bg-blue-50 border-2 border-blue-300 animate-pulse"
-                  : "bg-gray-50 border-2 border-gray-200 hover:border-blue-300"
+                  ? "bg-[#F3EDE4] border-2 border-[#8B6748] animate-pulse"
+                  : "bg-[#F3EDE4] border-2 border-[#C4A882] hover:border-[#8B6748]"
               }`}
             >
               {unlockStep === 5 ? (
                 <Unlock className="w-10 h-10 text-emerald-500" />
               ) : (
-                <Lock className={`w-10 h-10 ${isUnlocking ? "text-blue-500" : "text-gray-400"}`} />
+                <Lock className={`w-10 h-10 ${isUnlocking ? "text-[#8B6748]" : "text-gray-400"}`} />
               )}
             </button>
             <p className={`text-sm font-bold ${
@@ -301,7 +301,7 @@ function DigitalKeyPage({
                     unlockStep > index
                       ? "bg-emerald-500"
                       : unlockStep === index + 1
-                      ? "bg-blue-500 animate-pulse"
+                      ? "bg-[#8B6748] animate-pulse"
                       : "bg-gray-200 dark:bg-gray-700"
                   }`}>
                     {unlockStep > index && (
@@ -947,14 +947,14 @@ export default function CheckInVerification() {
   return (
     <div className="space-y-8 max-w-6xl mx-auto pb-12">
       {/* 3-Hour Prior Check-In Notification Banner */}
-      <div className="bg-gradient-to-r from-blue-600/15 via-indigo-600/15 to-purple-600/15 border border-blue-500/30 rounded-2xl p-5 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div className="bg-gradient-to-r from-[#8B6748]/15 via-[#B89572]/15 to-[#C4A882]/15 border border-[#8B6748]/30 rounded-2xl p-5 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div className="flex items-center gap-3.5">
-          <div className="h-11 w-11 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold shadow-md shrink-0">
+          <div className="h-11 w-11 rounded-xl bg-[#8B6748] text-white flex items-center justify-center font-bold shadow-md shrink-0">
             <Sparkles className="w-5 h-5 animate-pulse" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">3-Hour Prior Alert System</span>
+              <span className="text-xs font-bold text-[#8B6748] uppercase tracking-wider">3-Hour Prior Alert System</span>
               <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
             </div>
             <h3 className="text-sm font-bold text-foreground">{t("checkin.reminderAlertTitle")}</h3>
@@ -968,7 +968,7 @@ export default function CheckInVerification() {
             onClick={() => handleSend3HourReminder()}
             disabled={sendingReminder}
             size="sm"
-            className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold px-4 py-2 gap-2 shadow-sm"
+            className="bg-[#8B6748] hover:bg-[#7A5A3C] text-white rounded-xl text-xs font-semibold px-4 py-2 gap-2 shadow-sm"
           >
             {sendingReminder ? t("common.submitting") : t("checkin.send3hReminder")}
           </Button>
@@ -978,14 +978,14 @@ export default function CheckInVerification() {
 
 
       {/* Candidate Selection Banner */}
-      <div className="bg-card rounded-2xl border border-blue-200 dark:border-blue-900 p-6 shadow-md space-y-4">
+      <div className="bg-card rounded-2xl border border-[#C4A882] p-6 shadow-md space-y-4">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
-            <span className="text-xs font-extrabold uppercase tracking-widest text-blue-600 dark:text-blue-400 bg-blue-500/10 px-3 py-1 rounded-full">
+            <span className="text-xs font-extrabold uppercase tracking-widest text-[#8B6748] bg-[#F3EDE4] px-3 py-1 rounded-full">
               {t("checkin.step0Title")}
             </span>
             <h3 className="text-lg font-extrabold flex items-center gap-2 text-foreground mt-2">
-              <User className="w-5 h-5 text-blue-600" /> {t("checkin.selectCandidateHeader")}
+              <User className="w-5 h-5 text-[#8B6748]" /> {t("checkin.selectCandidateHeader")}
             </h3>
             <p className="text-xs text-muted-foreground mt-0.5">{t("checkin.selectCandidateSub")}</p>
           </div>
@@ -1011,7 +1011,7 @@ export default function CheckInVerification() {
                 setCheckInCompletedAnimation(false);
                 setDigitalKeyGenerated(false);
               }}
-              className="bg-card border-2 border-blue-500 rounded-xl px-4 py-3 text-xs font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-blue-600 w-full sm:w-80 shadow-md"
+              className="bg-card border-2 border-[#8B6748] rounded-xl px-4 py-3 text-xs font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-[#8B6748] w-full sm:w-80 shadow-md"
             >
               <option value="">{t("checkin.chooseCandidatePlaceholder")}</option>
               {reservations.map((r) => {
@@ -1041,14 +1041,14 @@ export default function CheckInVerification() {
               <div className="bg-white dark:bg-card border border-border rounded-3xl p-8 shadow-xl text-center max-w-lg mx-auto space-y-5 animate-in fade-in zoom-in duration-300">
                 {/* Blue success circle */}
                 <div className="relative mx-auto w-24 h-24 flex items-center justify-center">
-                  <div className="absolute inset-0 rounded-full bg-blue-50 dark:bg-blue-500/10" />
-                  <div className="w-16 h-16 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-lg shadow-blue-500/40 z-10">
+                  <div className="absolute inset-0 rounded-full bg-[#F3EDE4]" />
+                  <div className="w-16 h-16 rounded-full bg-[#8B6748] text-white flex items-center justify-center shadow-lg shadow-[#8B6748]/40 z-10">
                     <CheckCircle2 className="w-9 h-9" />
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <span className="inline-block text-[11px] font-extrabold tracking-widest uppercase text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/15 border border-blue-500/30 px-4 py-1 rounded-full">
+                  <span className="inline-block text-[11px] font-extrabold tracking-widest uppercase text-[#8B6748] bg-[#F3EDE4] border border-[#C4A882] px-4 py-1 rounded-full">
                     Already Checked In
                   </span>
                   <h3 className="text-2xl font-black text-foreground mt-2 leading-tight">
@@ -1072,7 +1072,7 @@ export default function CheckInVerification() {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Assigned Room:</span>
-                    <span className="font-extrabold text-blue-600 dark:text-blue-400">
+                    <span className="font-extrabold text-[#8B6748]">
                       Room #{selectedReservation.roomNumber || selectedReservation.room?.room_number || selectedReservation.room?.number || selectedReservation.roomId || "101"}
                     </span>
                   </div>
@@ -1105,7 +1105,7 @@ export default function CheckInVerification() {
             </div>
           ) : null
         ) : (
-          <div className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-700 dark:text-blue-300 text-xs font-bold text-center">
+          <div className="p-4 rounded-xl bg-[#F3EDE4] border border-[#C4A882] text-[#8B6748] text-xs font-bold text-center">
             {t("checkin.selectCandidateAlert")}
           </div>
         )}
@@ -1124,7 +1124,7 @@ export default function CheckInVerification() {
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-border pb-5">
                   <div>
                     <h2 className="text-lg font-bold flex items-center gap-2">
-                      <FileBadge className="w-5 h-5 text-blue-500" /> {t("checkin.step1Heading")}
+                      <FileBadge className="w-5 h-5 text-[#8B6748]" /> {t("checkin.step1Heading")}
                     </h2>
                     <p className="text-xs text-muted-foreground">{t("checkin.step1Subtitle")}</p>
                   </div>
@@ -1144,7 +1144,7 @@ export default function CheckInVerification() {
                         }
                         setVerificationResult(null);
                       }}
-                      className="bg-card border border-border rounded-lg px-3 py-1.5 text-xs font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-72"
+                      className="bg-card border border-border rounded-lg px-3 py-1.5 text-xs font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-[#8B6748] w-full sm:w-72"
                     >
                       {reservations.map((r) => {
                         const name = r.guest ? `${r.guest.firstName} ${r.guest.lastName}` : `Guest #${r.guestId || r.id}`;
@@ -1180,7 +1180,7 @@ export default function CheckInVerification() {
                     <div className="pt-3">
                       <Button
                         onClick={() => setStep(2)}
-                        className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold px-6 py-3 shadow-md gap-2"
+                        className="bg-[#8B6748] hover:bg-[#7A5A3C] text-white rounded-xl text-xs font-bold px-6 py-3 shadow-md gap-2"
                       >
                         <span>కొనసాగించండి: చెల్లింపు ప్రక్రియ (Continue to Step 2: Payment)</span>
                         <ChevronRight className="w-4 h-4" />
@@ -1201,9 +1201,9 @@ export default function CheckInVerification() {
                   <div className="border border-border rounded-2xl p-5 bg-accent/20 space-y-4">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2 font-bold text-sm">
-                        <FileBadge className="w-4 h-4 text-blue-500" /> {t("checkin.driverLicenseVerification")}
+                        <FileBadge className="w-4 h-4 text-[#8B6748]" /> {t("checkin.driverLicenseVerification")}
                       </div>
-                      {dlImage && <CheckCircle2 className="w-5 h-5 text-blue-500" />}
+                      {dlImage && <CheckCircle2 className="w-5 h-5 text-[#8B6748]" />}
                     </div>
 
                     <div className="relative h-52 border-2 border-dashed border-border rounded-xl flex flex-col items-center justify-center overflow-hidden bg-card">
@@ -1235,9 +1235,9 @@ export default function CheckInVerification() {
                   <div className="border border-border rounded-2xl p-5 bg-accent/20 space-y-4">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2 font-bold text-sm">
-                        <Camera className="w-4 h-4 text-blue-500" /> {t("checkin.liveSelfieVerification")}
+                        <Camera className="w-4 h-4 text-[#8B6748]" /> {t("checkin.liveSelfieVerification")}
                       </div>
-                      {selfieImage && <CheckCircle2 className="w-5 h-5 text-blue-500" />}
+                      {selfieImage && <CheckCircle2 className="w-5 h-5 text-[#8B6748]" />}
                     </div>
 
                     <div className="relative h-52 border-2 border-dashed border-border rounded-xl flex flex-col items-center justify-center overflow-hidden bg-card">
@@ -1256,7 +1256,7 @@ export default function CheckInVerification() {
 
                     <div className="grid grid-cols-2 gap-2">
                       {isCameraActive ? (
-                        <Button onClick={captureSelfie} className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-xs">
+                        <Button onClick={captureSelfie} className="w-full bg-[#8B6748] hover:bg-[#7A5A3C] text-white rounded-xl text-xs font-bold shadow-xs">
                           {t("checkin.snapSelfie")}
                         </Button>
                       ) : (
@@ -1317,7 +1317,7 @@ export default function CheckInVerification() {
                         <Button
                           onClick={() => setStep(2)}
                           title="Proceed to Next Step"
-                          className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold px-4 py-2.5 shrink-0 gap-1.5 shadow-md transition hover:scale-105 flex items-center"
+                          className="bg-[#8B6748] hover:bg-[#7A5A3C] text-white rounded-xl text-xs font-bold px-4 py-2.5 shrink-0 gap-1.5 shadow-md transition hover:scale-105 flex items-center"
                         >
                           <span>{t("checkin.nextStep")}</span>
                           <ChevronRight className="w-4 h-4" />
@@ -1337,7 +1337,7 @@ export default function CheckInVerification() {
                       handleVerifyId(false, false);
                     }}
                     disabled={verifying}
-                    className="w-full sm:w-auto h-14 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-base font-extrabold px-10 gap-3 shadow-xl shadow-blue-500/25 cursor-pointer disabled:opacity-50 transition hover:scale-102"
+                    className="w-full sm:w-auto h-14 bg-[#8B6748] hover:bg-[#7A5A3C] text-white rounded-2xl text-base font-extrabold px-10 gap-3 shadow-xl shadow-[#8B6748]/25 cursor-pointer disabled:opacity-50 transition hover:scale-102"
                   >
                     {verifying ? (
                       <>
@@ -1451,8 +1451,8 @@ export default function CheckInVerification() {
                 /* Step 3A: Summary before completing check-in */
                 <div className="bg-white dark:bg-card border border-border rounded-3xl p-8 shadow-xl text-center max-w-xl mx-auto space-y-6 animate-in fade-in duration-300">
                   <div className="relative mx-auto w-24 h-24 flex items-center justify-center">
-                    <div className="absolute inset-0 rounded-full bg-blue-100 dark:bg-blue-500/20" />
-                    <div className="w-16 h-16 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-lg shadow-blue-500/40 z-10">
+                    <div className="absolute inset-0 rounded-full bg-[#F3EDE4]" />
+                    <div className="w-16 h-16 rounded-full bg-[#8B6748] text-white flex items-center justify-center shadow-lg shadow-[#8B6748]/40 z-10">
                       <CheckCircle2 className="w-9 h-9" />
                     </div>
                   </div>
@@ -1478,7 +1478,7 @@ export default function CheckInVerification() {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">{t("checkin.assignedRoomLabel")}</span>
-                      <span className="font-bold text-blue-600 dark:text-blue-400">
+                      <span className="font-bold text-[#8B6748]">
                         {t("dashboard.rooms")} #{selectedReservation.roomNumber || selectedReservation.room?.room_number || selectedReservation.room?.number || selectedReservation.roomId || "101"}
                       </span>
                     </div>
@@ -1487,7 +1487,7 @@ export default function CheckInVerification() {
                   <Button
                     onClick={handleCompleteCheckIn}
                     disabled={completingCheckIn}
-                    className="w-full h-14 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-base font-extrabold shadow-xl shadow-blue-500/25 flex items-center justify-center gap-3 cursor-pointer"
+                    className="w-full h-14 bg-[#8B6748] hover:bg-[#7A5A3C] text-white rounded-2xl text-base font-extrabold shadow-xl shadow-[#8B6748]/25 flex items-center justify-center gap-3 cursor-pointer"
                   >
                     {completingCheckIn ? (
                       <>
@@ -1505,14 +1505,14 @@ export default function CheckInVerification() {
                 <div className="bg-white dark:bg-card border border-border rounded-3xl p-10 shadow-xl text-center max-w-md mx-auto space-y-5 animate-in fade-in zoom-in duration-300">
                   {/* Blue success icon */}
                   <div className="relative mx-auto w-28 h-28 flex items-center justify-center">
-                    <div className="absolute inset-0 rounded-full bg-blue-50 dark:bg-blue-500/10" />
-                    <div className="w-20 h-20 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-xl shadow-blue-500/40 z-10">
+                    <div className="absolute inset-0 rounded-full bg-[#F3EDE4]" />
+                    <div className="w-20 h-20 rounded-full bg-[#8B6748] text-white flex items-center justify-center shadow-xl shadow-[#8B6748]/40 z-10">
                       <CheckCircle2 className="w-11 h-11" />
                     </div>
                   </div>
 
                   <div className="space-y-2">
-                    <span className="inline-block text-[11px] font-extrabold tracking-widest uppercase text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/15 border border-blue-500/30 px-5 py-1.5 rounded-full">
+                    <span className="inline-block text-[11px] font-extrabold tracking-widest uppercase text-[#8B6748] bg-[#F3EDE4] border border-[#C4A882] px-5 py-1.5 rounded-full">
                       Check-In Completed
                     </span>
                     <h2 className="text-2xl font-black text-foreground mt-2 leading-tight">
@@ -1527,7 +1527,7 @@ export default function CheckInVerification() {
                     </p>
                   </div>
 
-                  <span className="inline-flex items-center gap-1.5 px-5 py-2 rounded-full bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-300 text-xs font-bold border border-blue-200 dark:border-blue-500/30">
+                  <span className="inline-flex items-center gap-1.5 px-5 py-2 rounded-full bg-[#F3EDE4] text-[#8B6748] text-xs font-bold border border-[#C4A882]">
                     ✓ Room #{selectedReservation.roomNumber || selectedReservation.room?.room_number || selectedReservation.room?.number || selectedReservation.roomId || "101"} Checked-In
                   </span>
 
@@ -1551,7 +1551,7 @@ export default function CheckInVerification() {
                       navigate("/digital-key");
                     }}
                     disabled={generatingKey}
-                    className="w-full h-14 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-base font-extrabold shadow-xl shadow-blue-500/30 flex items-center justify-center gap-3 cursor-pointer"
+                    className="w-full h-14 bg-[#8B6748] hover:bg-[#7A5A3C] text-white rounded-2xl text-base font-extrabold shadow-xl shadow-[#8B6748]/30 flex items-center justify-center gap-3 cursor-pointer"
                   >
                     {generatingKey ? (
                       <>

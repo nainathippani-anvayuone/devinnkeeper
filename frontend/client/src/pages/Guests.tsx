@@ -149,7 +149,7 @@ export default function GuestsPage() {
                           ? "bg-emerald-500/10 text-emerald-600 border border-emerald-500/20"
                           : isCheckedOut
                             ? "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-border"
-                            : "bg-blue-500/10 text-blue-600 border border-blue-500/20";
+                            : "bg-[#F3EDE4] text-[#8B6748] border border-[#C4A882]";
 
                         return (
                           <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${badgeStyle}`}>
@@ -252,7 +252,7 @@ export default function GuestsPage() {
                 <Button type="button" variant="outline" className="h-11 rounded-2xl border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-medium px-6 shadow-2xs" onClick={() => setDialogOpen(false)}>
                   Cancel
                 </Button>
-                <Button type="submit" className="h-11 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 shadow-md shadow-blue-500/20" disabled={createM.isPending || updateM.isPending}>
+                <Button type="submit" className="h-11 rounded-2xl bg-[#8B6748] hover:bg-[#7A5A3C] text-white font-semibold px-6 shadow-md shadow-[#8B6748]/20" disabled={createM.isPending || updateM.isPending}>
                   {createM.isPending || updateM.isPending ? "Saving..." : "Save Guest"}
                 </Button>
               </div>

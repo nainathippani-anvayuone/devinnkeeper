@@ -146,7 +146,7 @@ export default function CashLedgerPage() {
                 <Button type="button" variant="outline" className="h-11 rounded-2xl border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-medium px-6 shadow-2xs cursor-pointer" onClick={()=>setDialogOpen(false)}>
                   {t("common.cancel")}
                 </Button>
-                <Button type="submit" className="h-11 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 shadow-md shadow-blue-500/20" disabled={openShift.isPending || updateShift.isPending}>
+                <Button type="submit" className="h-11 rounded-2xl bg-[#8B6748] hover:bg-[#7A5A3C] text-white font-semibold px-6 shadow-md shadow-[#8B6748]/20" disabled={openShift.isPending || updateShift.isPending}>
                   {openShift.isPending || updateShift.isPending ? t("common.saving") : t("cashLedger.saveShift")}
                 </Button>
               </div>

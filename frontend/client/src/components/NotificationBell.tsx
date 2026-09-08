@@ -92,7 +92,7 @@ export const NotificationBell: React.FC = () => {
         <div className="flex items-center gap-2">
           <h3 className="font-bold text-slate-900 dark:text-white text-sm">Notifications</h3>
           {unreadCount > 0 && (
-            <span className="text-xs px-2 py-0.5 rounded-full bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300 font-semibold">
+            <span className="text-xs px-2 py-0.5 rounded-full bg-[#F3EDE4] text-[#8B6748] border border-[#C4A882] font-semibold">
               {unreadCount} new
             </span>
           )}
@@ -100,7 +100,7 @@ export const NotificationBell: React.FC = () => {
         {unreadCount > 0 && (
           <button
             onClick={markAllAsRead}
-            className="text-xs text-sky-600 dark:text-sky-400 hover:text-sky-700 font-medium flex items-center gap-1 transition-colors cursor-pointer"
+            className="text-xs text-[#8B6748] hover:text-[#7A5A3C] font-medium flex items-center gap-1 transition-colors cursor-pointer"
           >
             <CheckCheck className="w-3.5 h-3.5" /> Mark all read
           </button>
@@ -119,10 +119,10 @@ export const NotificationBell: React.FC = () => {
               key={notif.id}
               onClick={() => handleNotificationClick(notif)}
               className={`p-3.5 transition-colors cursor-pointer flex items-start gap-3 hover:bg-slate-50 dark:hover:bg-slate-800/50 group ${
-                !notif.isRead ? 'bg-sky-50/60 dark:bg-sky-950/20' : ''
+                !notif.isRead ? 'bg-[#F3EDE4]/60' : ''
               }`}
             >
-              <div className={`mt-1.5 w-2 h-2 rounded-full flex-shrink-0 ${!notif.isRead ? 'bg-sky-500' : 'bg-transparent'}`} />
+              <div className={`mt-1.5 w-2 h-2 rounded-full flex-shrink-0 ${!notif.isRead ? 'bg-[#8B6748]' : 'bg-transparent'}`} />
               
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-1 mb-1">
@@ -146,7 +146,7 @@ export const NotificationBell: React.FC = () => {
                       e.stopPropagation();
                       markAsRead(notif.id);
                     }}
-                    className="p-1 text-slate-400 hover:text-sky-600"
+                    className="p-1 text-slate-400 hover:text-[#8B6748]"
                     title="Mark as read"
                   >
                     <Check className="w-3.5 h-3.5" />
@@ -175,7 +175,7 @@ export const NotificationBell: React.FC = () => {
             setLocation('/notifications');
             setIsOpen(false);
           }}
-          className="text-xs font-semibold text-sky-600 hover:text-sky-700 flex items-center justify-center gap-1 w-full py-1 cursor-pointer"
+          className="text-xs font-semibold text-[#8B6748] hover:text-[#7A5A3C] flex items-center justify-center gap-1 w-full py-1 cursor-pointer"
         >
           View all notifications <ExternalLink className="w-3 h-3" />
         </button>
@@ -199,7 +199,7 @@ export const NotificationBell: React.FC = () => {
 
         {/* Unread Counter Badge */}
         {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 flex items-center justify-center min-w-[18px] h-4.5 px-1 text-[10px] font-bold text-white bg-sky-600 rounded-full border-2 border-white dark:border-slate-900">
+          <span className="absolute -top-1 -right-1 flex items-center justify-center min-w-[18px] h-4.5 px-1 text-[10px] font-bold text-white bg-[#8B6748] rounded-full border-2 border-white dark:border-slate-900">
             {unreadCount > 99 ? '99+' : unreadCount}
           </span>
         )}

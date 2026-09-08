@@ -152,7 +152,7 @@ export default function Dashboard() {
 
   const statusColors: Record<string, string> = {
     vacant: "bg-emerald-500",
-    occupied: "bg-blue-500",
+    occupied: "bg-[#8B6748]",
     dirty: "bg-amber-500",
     maintenance: "bg-red-500",
     reserved: "bg-purple-500",
@@ -182,21 +182,28 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="rounded-[2rem] border border-slate-200/80 bg-white/75 p-5 shadow-[0_20px_60px_rgba(15,23,42,0.06)] backdrop-blur-xl">
+    <motion.div
+      initial={{ opacity: 0, y: 15 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, ease: "easeOut" }}
+      className="space-y-6"
+    >
+      <div className="rounded-[2rem] border border-[#E8DED2] bg-[#F8F4EE] p-5 shadow-[0_15px_40px_rgba(63,53,45,0.04)] backdrop-blur-xl">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <div className="mb-2 flex items-center gap-2 text-sm font-medium text-sky-700">
+            <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-[#8B6748]">
               <Sparkles className="h-4 w-4" />
               {t("dashboard.subtitle")}
             </div>
-            <h1 className="text-2xl font-semibold tracking-tight text-slate-900">{t("dashboard.title")}</h1>
-            <p className="mt-1 text-sm text-slate-600">
+            <h1 className="text-2xl font-bold tracking-tight text-[#3F352D] font-serif">{t("dashboard.title")}</h1>
+            <p className="mt-1 text-sm text-[#6F6258]">
               {getDashboardLocaleDate()}
             </p>
           </div>
         </div>
       </div>
+
+
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -264,7 +271,7 @@ export default function Dashboard() {
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-4">
                   <CardTitle className="flex items-center gap-2 text-lg font-semibold">
-                    <Calendar className="h-5 w-5 text-sky-600" />
+                    <Calendar className="h-5 w-5 text-[#8B6748]" />
                     {t("dashboard.tapeChart")}
                   </CardTitle>
                   <div className="flex items-center gap-2">
@@ -420,6 +427,7 @@ export default function Dashboard() {
 
       {/* AI Assistant */}
      
-    </div>
+    </motion.div>
   );
 }
+

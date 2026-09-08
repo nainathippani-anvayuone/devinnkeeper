@@ -221,7 +221,7 @@ Thank you for staying with InnKeeper Motels!
           <button
             onClick={handleSimulateUnlock}
             disabled={isUnlocking}
-            className="bg-[#0099ff] hover:bg-[#0088ea] active:scale-95 text-white px-7 py-3.5 rounded-2xl font-bold text-sm sm:text-base shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2.5 transition cursor-pointer mt-6 disabled:opacity-75"
+            className="bg-[#8B6748] hover:bg-[#7A5A3C] active:scale-95 text-white px-7 py-3.5 rounded-2xl font-bold text-sm sm:text-base shadow-lg shadow-[#8B6748]/25 flex items-center justify-center gap-2.5 transition cursor-pointer mt-6 disabled:opacity-75"
           >
             {isUnlocking ? (
               <span>Unlocking Door...</span>

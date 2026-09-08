@@ -53,7 +53,7 @@ function normalizeList(data: any) {
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
   pending:     { label: "Pending",     color: "text-amber-700",  bg: "bg-amber-50 border-amber-200" },
-  "in-progress": { label: "In Progress", color: "text-blue-700", bg: "bg-blue-50 border-blue-200" },
+  "in-progress": { label: "In Progress", color: "text-[#8B6748]", bg: "bg-[#F3EDE4] border-[#C4A882]" },
   clean:       { label: "Clean",       color: "text-green-700", bg: "bg-green-50 border-green-200" },
   inspected:   { label: "Inspected",   color: "text-violet-700", bg: "bg-violet-50 border-violet-200" },
 };
@@ -233,19 +233,19 @@ export default function HousekeepingPage() {
   return (
     <div className="space-y-6">
       {/* Top Header */}
-      <div className="rounded-2xl bg-blue-600 text-white p-5 flex flex-wrap items-center justify-between gap-4 shadow-lg">
+      <div className="rounded-2xl bg-[#8B6748] text-white p-5 flex flex-wrap items-center justify-between gap-4 shadow-lg">
         <div className="flex items-center gap-3">
           <div className="h-10 w-10 rounded-xl bg-white/20 border border-white/30 flex items-center justify-center text-white">
             <Sparkles className="h-5 w-5" />
           </div>
           <div>
             <h1 className="text-xl font-bold">{t("housekeeping.title")}</h1>
-            <p className="text-xs text-blue-100">{t("housekeeping.subtitle")}</p>
+            <p className="text-xs text-[#E8DED2]">{t("housekeeping.subtitle")}</p>
           </div>
         </div>
 
         <div className="flex items-center gap-3">
-          <Button size="sm" onClick={() => { form.reset(); setDialogOpen(true); }} className="bg-white hover:bg-sky-50 text-sky-700 gap-2 rounded-xl font-bold shadow-md cursor-pointer">
+          <Button size="sm" onClick={() => { form.reset(); setDialogOpen(true); }} className="bg-white hover:bg-[#F3EDE4] text-[#8B6748] gap-2 rounded-xl font-bold shadow-md cursor-pointer">
             <Plus className="h-4 w-4" /> {t("common.create")}
           </Button>
         </div>
@@ -344,8 +344,8 @@ export default function HousekeepingPage() {
                         )}
                         {status === "clean" && (
                           <>
-                            <span className="px-3 py-0.5 rounded-full text-xs font-bold bg-sky-500/15 text-sky-600 border border-sky-500/20 uppercase tracking-wider flex items-center gap-1">
-                              <span className="h-1.5 w-1.5 rounded-full bg-sky-500"></span> {t("housekeeping.cleanUpper")}
+                              <span className="px-3 py-0.5 rounded-full text-xs font-bold bg-[#8B6748]/15 text-[#8B6748] border border-[#8B6748]/20 uppercase tracking-wider flex items-center gap-1">
+                              <span className="h-1.5 w-1.5 rounded-full bg-[#8B6748]"></span> {t("housekeeping.cleanUpper")}
                             </span>
                           </>
                         )}
@@ -386,7 +386,7 @@ export default function HousekeepingPage() {
                         {status === "pending" && (
                           <Button
                             onClick={() => updateM.mutate({ id: task.id, data: { status: "in-progress", cleaningStartedAt: new Date().toISOString() } })}
-                            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-md py-2.5"
+                            className="flex-1 bg-[#8B6748] hover:bg-[#7A5A3C] text-white font-bold rounded-xl shadow-md py-2.5"
                           >
                             ▶ {t("housekeeping.startCleaning")}
                           </Button>
@@ -400,7 +400,7 @@ export default function HousekeepingPage() {
                                 updateRoomM.mutate({ roomId: Number(task.roomId), status: "vacant" });
                               }
                             }}
-                            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-md py-2.5"
+                            className="flex-1 bg-[#8B6748] hover:bg-[#7A5A3C] text-white font-bold rounded-xl shadow-md py-2.5"
                           >
                             ✓ {t("housekeeping.markCleanVacant")}
                           </Button>
@@ -411,7 +411,7 @@ export default function HousekeepingPage() {
                               fireConfettiBlast();
                               updateM.mutate({ id: task.id, data: { status: "inspected" } });
                             }}
-                            className="flex-1 bg-sky-600 hover:bg-sky-700 text-white font-bold rounded-xl shadow-md py-2.5"
+                            className="flex-1 bg-[#8B6748] hover:bg-[#7A5A3C] text-white font-bold rounded-xl shadow-md py-2.5"
                           >
                             🛡 {t("housekeeping.approveInspection")}
                           </Button>
@@ -419,13 +419,13 @@ export default function HousekeepingPage() {
                         {status === "inspected" && (
                           <Button
                             onClick={() => updateM.mutate({ id: task.id, data: { status: "pending" } })}
-                            className="flex-1 bg-sky-600 hover:bg-sky-700 text-white font-bold rounded-xl shadow-md py-2.5"
+                            className="flex-1 bg-[#8B6748] hover:bg-[#7A5A3C] text-white font-bold rounded-xl shadow-md py-2.5"
                           >
                             ↻ {t("housekeeping.markDirty")}
                           </Button>
                         )}
                         <Button variant="outline" size="icon" className="rounded-xl border-slate-300 dark:border-slate-700">
-                          <Wrench className="h-4 w-4 text-sky-600" />
+                          <Wrench className="h-4 w-4 text-[#8B6748]" />
                         </Button>
                       </div>
                     </div>
@@ -509,7 +509,7 @@ export default function HousekeepingPage() {
                 <Button type="button" variant="outline" className="h-11 rounded-2xl border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-medium px-6" onClick={() => setDialogOpen(false)}>
                   {t("common.cancel")}
                 </Button>
-                <Button type="submit" className="h-11 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6" disabled={createM.isPending}>
+                <Button type="submit" className="h-11 rounded-2xl bg-[#8B6748] hover:bg-[#7A5A3C] text-white font-semibold px-6" disabled={createM.isPending}>
                   {createM.isPending ? t("common.submitting") : t("housekeeping.saveTask")}
                 </Button>
               </div>

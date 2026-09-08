@@ -37,9 +37,10 @@ import { DashboardLayoutSkeleton } from "./DashboardLayoutSkeleton";
 import { Switch } from "./ui/switch";
 import SettingsModal from "./dashboard/SettingsModal";
 import { useTranslation } from "react-i18next";
+import PageTransition from "./PageTransition";
 
 const navItems = [
-  { icon: LayoutDashboard, key: "dashboard", label: "Dashboard", path: "/" },
+  { icon: LayoutDashboard, key: "dashboard", label: "Dashboard", path: "/dashboard" },
   { icon: CalendarDays, key: "reservations", label: "Reservations", path: "/reservations" },
   { icon: ShieldCheck, key: "checkin", label: "Check-In & Keys", path: "/checkin" },
   { icon: Users, key: "guests", label: "Guests", path: "/guests" },
@@ -92,35 +93,35 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const activeNavItem = navItems.find((i) =>
     (i as any).isSettings
       ? isSettingsOpen
-      : i.path === "/"
-      ? location === "/"
+      : i.path === "/dashboard"
+      ? location === "/" || location === "/dashboard"
       : location.startsWith(i.path)
   );
 
   return (
-    <div className="flex min-h-screen bg-background relative overflow-x-hidden">
+    <div className="flex min-h-screen bg-[#F3EDE4] text-[#3F352D] relative overflow-x-hidden selection:bg-[#8B6748] selection:text-white">
       <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
 
       {/* Mobile Drawer Overlay Backdrop */}
       {mobileOpen && (
         <div
           onClick={() => setMobileOpen(false)}
-          className="fixed inset-0 z-40 bg-slate-900/60 backdrop-blur-xs md:hidden"
+          className="fixed inset-0 z-40 bg-[#3F352D]/60 backdrop-blur-xs md:hidden"
         />
       )}
 
       {/* Sidebar (Desktop & Mobile Slide-over) */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex flex-col border-r border-border bg-card transition-all duration-300 ease-in-out md:static md:z-auto ${
+        className={`fixed inset-y-0 left-0 z-50 flex flex-col border-r border-[#E8DED2] bg-[#F8F4EE] transition-all duration-300 ease-in-out md:static md:z-auto ${
           mobileOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full md:translate-x-0"
         } ${collapsed ? "w-[68px]" : "w-[240px]"} shrink-0`}
       >
         {/* Logo Header */}
-        <div className="flex h-16 items-center justify-center relative border-b border-border px-3 shrink-0">
+        <div className="flex h-16 items-center justify-center relative border-b border-[#E8DED2] px-3 shrink-0">
           {collapsed ? (
             <button
               onClick={toggleCollapsed}
-              className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 hover:bg-primary text-primary hover:text-primary-foreground transition-all shadow-2xs cursor-pointer"
+              className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#8B6748]/10 hover:bg-[#8B6748] text-[#8B6748] hover:text-[#F8F4EE] transition-all shadow-2xs cursor-pointer"
               title="Click to expand sidebar"
               aria-label="Expand sidebar"
             >
@@ -128,17 +129,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </button>
           ) : (
             <div className="flex items-center gap-3 w-full px-2">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground font-bold shadow-sm">
-                <DoorOpen className="h-5 w-5" />
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#8B6748] text-[#F8F4EE] font-bold shadow-sm">
+                <DoorOpen className="h-5 w-5 text-[#E8DED2]" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold text-foreground leading-tight truncate">
+                <p className="text-sm font-bold text-[#3F352D] leading-tight truncate font-serif">
                   {t("navigation.appName")}
                 </p>
-                <p className="text-[11px] font-medium text-muted-foreground truncate">
+                <p className="text-[11px] font-semibold text-[#8B6748] truncate">
                   {t("navigation.motelOperations")}
                 </p>
               </div>
+
               <button
                 onClick={toggleCollapsed}
                 className="hidden md:flex h-7 w-7 items-center justify-center rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
@@ -183,9 +185,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 title={translatedLabel}
                 className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-150 cursor-pointer ${
                   isActive
-                    ? "bg-primary text-primary-foreground shadow-sm"
-                    : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                    ? "bg-[#8B6748] text-[#F8F4EE] shadow-sm font-semibold"
+                    : "text-[#6F6258] hover:bg-[#E8DED2]/60 hover:text-[#3F352D]"
                 }`}
+
               >
                 <item.icon className="h-4.5 w-4.5 shrink-0" />
                 {!collapsed && <span>{translatedLabel}</span>}
@@ -295,7 +298,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   onClick={() => setIsSettingsOpen(true)}
                   className="cursor-pointer mt-1 rounded-xl py-2 px-3 text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 focus:bg-slate-100 dark:focus:bg-slate-800"
                 >
-                  <Settings className="mr-2.5 h-4 w-4 text-sky-600 dark:text-sky-400" />
+                  <Settings className="mr-2.5 h-4 w-4 text-[#8B6748]" />
                   <span>{t("settings.title")}</span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator className="my-1 border-slate-100 dark:border-slate-800" />
@@ -313,9 +316,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         {/* Page content */}
         <main className="flex-1 overflow-auto p-3.5 sm:p-6">
-          {children}
+          <PageTransition key={location}>
+            {children}
+          </PageTransition>
         </main>
       </div>
     </div>
   );
 }
+

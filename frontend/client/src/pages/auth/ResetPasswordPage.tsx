@@ -82,11 +82,11 @@ export default function ResetPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(14,116,144,0.12),_transparent_35%),linear-gradient(135deg,_#fdfcf7_0%,_#f5efe5_45%,_#eef6f8_100%)] p-4 sm:p-6 lg:p-8">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(184,149,114,0.12),_transparent_35%),linear-gradient(135deg,_#fdfcf7_0%,_#f5efe5_45%,_#eef6f8_100%)] p-4 sm:p-6 lg:p-8">
       <div className="mx-auto flex min-h-screen max-w-xl items-center justify-center">
         <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }} className="w-full rounded-[32px] border border-amber-100/80 bg-white/85 p-8 shadow-[0_25px_80px_rgba(15,23,42,0.10)] backdrop-blur-xl">
           <div className="mb-6 text-center">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-600/10 text-blue-600">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#8B6748]/10 text-[#8B6748]">
               <Lock className="h-6 w-6" />
             </div>
             <h2 className="text-3xl font-semibold text-slate-900">Reset your password</h2>

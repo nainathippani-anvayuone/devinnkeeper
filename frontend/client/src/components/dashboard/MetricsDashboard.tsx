@@ -126,8 +126,8 @@ export default function MetricsDashboard({ rooms, reservations }: MetricsDashboa
           value: `${metrics.occupancyRate}%`,
           detail: `${metrics.occupiedRooms} of ${metrics.totalRooms} rooms occupied`,
           icon: Bed,
-          accent: "from-blue-500/10 to-sky-500/5",
-          tint: "text-blue-600 dark:text-blue-400",
+          accent: "from-[#8B6748]/10 to-[#B89572]/5",
+          tint: "text-[#8B6748]",
           progress: metrics.occupancyRate,
         },
         {
@@ -178,7 +178,7 @@ export default function MetricsDashboard({ rooms, reservations }: MetricsDashboa
                     animate={{ width: `${metric.progress}%` }}
                     transition={{ duration: 0.7, delay: index * 0.05, ease: [0.23, 1, 0.32, 1] }}
                     className={`h-full rounded-full bg-gradient-to-r ${
-                      index === 0 ? "from-blue-500 to-sky-500" :
+                      index === 0 ? "from-[#8B6748] to-[#B89572]" :
                       index === 1 ? "from-emerald-500 to-teal-500" :
                       index === 2 ? "from-purple-500 to-indigo-500" :
                       "from-amber-500 to-yellow-500"
@@ -197,7 +197,7 @@ export default function MetricsDashboard({ rooms, reservations }: MetricsDashboa
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
               <CardTitle className="text-sm font-medium">{t("dashboard.weeklyOccupancyTrend")}</CardTitle>
-              <div className="flex items-center gap-2 rounded-full bg-sky-50 px-2.5 py-1 text-xs font-medium text-sky-700">
+              <div className="flex items-center gap-2 rounded-full bg-[#F3EDE4] px-2.5 py-1 text-xs font-semibold text-[#8B6748] border border-[#C4A882]">
                 <Sparkles className="h-3.5 w-3.5" />
                 {t("dashboard.liveOutlook")}
               </div>

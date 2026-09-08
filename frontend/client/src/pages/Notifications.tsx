@@ -26,7 +26,7 @@ export const NotificationsPage: React.FC = () => {
       case 'HIGH':
         return <span className="px-2 py-0.5 text-xs font-semibold rounded bg-amber-100 text-amber-700 border border-amber-200 flex items-center gap-1"><AlertCircle className="w-3 h-3"/> HIGH</span>;
       case 'NORMAL':
-        return <span className="px-2 py-0.5 text-xs font-semibold rounded bg-sky-100 text-sky-700 border border-sky-200 flex items-center gap-1"><Info className="w-3 h-3"/> NORMAL</span>;
+        return <span className="px-2 py-0.5 text-xs font-semibold rounded bg-[#F3EDE4] text-[#8B6748] border border-[#C4A882] flex items-center gap-1"><Info className="w-3 h-3"/> NORMAL</span>;
       default:
         return <span className="px-2 py-0.5 text-xs font-semibold rounded bg-slate-100 text-slate-600">LOW</span>;
     }
@@ -44,7 +44,7 @@ export const NotificationsPage: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-xs">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-3">
-            <Bell className="w-7 h-7 text-sky-600" /> Notifications Center
+            <Bell className="w-7 h-7 text-[#8B6748]" /> Notifications Center
           </h1>
           <p className="text-sm text-slate-500 mt-1">
             Real-time updates and activity feed across all departments
@@ -53,7 +53,7 @@ export const NotificationsPage: React.FC = () => {
         {unreadCount > 0 && (
           <button
             onClick={markAllAsRead}
-            className="px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white font-medium text-sm rounded-xl transition-all flex items-center gap-2 shadow-xs self-start sm:self-auto cursor-pointer"
+            className="px-4 py-2 bg-[#8B6748] hover:bg-[#7A5A3C] text-white font-medium text-sm rounded-xl transition-all flex items-center gap-2 shadow-xs self-start sm:self-auto cursor-pointer"
           >
             <CheckCheck className="w-4 h-4" /> Mark All as Read
           </button>
@@ -66,7 +66,7 @@ export const NotificationsPage: React.FC = () => {
           <button
             onClick={() => setFilter('ALL')}
             className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap cursor-pointer ${
-              filter === 'ALL' ? 'bg-sky-600 text-white' : 'bg-slate-100 text-slate-600 hover:text-slate-900 hover:bg-slate-200'
+              filter === 'ALL' ? 'bg-[#8B6748] text-white' : 'bg-slate-100 text-slate-600 hover:text-slate-900 hover:bg-slate-200'
             }`}
           >
             All ({notifications.length})
@@ -74,7 +74,7 @@ export const NotificationsPage: React.FC = () => {
           <button
             onClick={() => setFilter('UNREAD')}
             className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap cursor-pointer ${
-              filter === 'UNREAD' ? 'bg-sky-600 text-white' : 'bg-slate-100 text-slate-600 hover:text-slate-900 hover:bg-slate-200'
+              filter === 'UNREAD' ? 'bg-[#8B6748] text-white' : 'bg-slate-100 text-slate-600 hover:text-slate-900 hover:bg-slate-200'
             }`}
           >
             Unread ({unreadCount})
@@ -82,7 +82,7 @@ export const NotificationsPage: React.FC = () => {
           <button
             onClick={() => setFilter('HIGH')}
             className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap cursor-pointer ${
-              filter === 'HIGH' ? 'bg-sky-600 text-white' : 'bg-slate-100 text-slate-600 hover:text-slate-900 hover:bg-slate-200'
+              filter === 'HIGH' ? 'bg-[#8B6748] text-white' : 'bg-slate-100 text-slate-600 hover:text-slate-900 hover:bg-slate-200'
             }`}
           >
             High Priority
@@ -96,7 +96,7 @@ export const NotificationsPage: React.FC = () => {
             placeholder="Search notifications..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-9 pr-3 py-1.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-sky-500"
+            className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-9 pr-3 py-1.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#8B6748]"
           />
         </div>
       </div>
@@ -119,11 +119,11 @@ export const NotificationsPage: React.FC = () => {
               <div
                 key={notif.id}
                 className={`p-4 sm:p-5 transition-all flex flex-col sm:flex-row items-start justify-between gap-4 hover:bg-slate-50 ${
-                  !notif.isRead ? 'bg-sky-50/50 border-l-4 border-l-sky-500' : ''
+                  !notif.isRead ? 'bg-[#F3EDE4]/50 border-l-4 border-l-[#8B6748]' : ''
                 }`}
               >
                 <div className="flex items-start gap-4 flex-1">
-                  <div className={`w-2.5 h-2.5 rounded-full mt-1.5 flex-shrink-0 ${!notif.isRead ? 'bg-sky-500' : 'bg-transparent'}`} />
+                  <div className={`w-2.5 h-2.5 rounded-full mt-1.5 flex-shrink-0 ${!notif.isRead ? 'bg-[#8B6748]' : 'bg-transparent'}`} />
                   <div className="space-y-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <h3 className="text-sm font-bold text-slate-900">{notif.title}</h3>
@@ -137,7 +137,7 @@ export const NotificationsPage: React.FC = () => {
                     {(notif.roomId || notif.reservationId) && (
                       <button
                         onClick={() => handleAction(notif)}
-                        className="text-xs font-semibold text-sky-600 hover:underline mt-2 inline-block cursor-pointer"
+                        className="text-xs font-semibold text-[#8B6748] hover:underline mt-2 inline-block cursor-pointer"
                       >
                         View Details →
                       </button>
