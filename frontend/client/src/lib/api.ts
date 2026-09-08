@@ -20,6 +20,10 @@ api.interceptors.request.use((config) => {
     if (token) {
       config.headers = { ...(config.headers ?? {}), Authorization: `Bearer ${token}` } as any;
     }
+    const checkInToken = sessionStorage.getItem("innkeeper_checkin_token");
+    if (checkInToken) {
+      config.headers = { ...(config.headers ?? {}), "x-checkin-token": checkInToken } as any;
+    }
   } catch (e) {
     // ignore
   }

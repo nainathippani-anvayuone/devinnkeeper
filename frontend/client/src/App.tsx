@@ -73,7 +73,7 @@ function PublicRoutes() {
       <Route path="/cash-ledger" component={ProtectedApp} />
       <Route path="/shift-audits" component={ProtectedApp} />
       <Route path="/reservations" component={ProtectedApp} />
-      <Route path="/checkin" component={ProtectedApp} />
+      <Route path="/checkin" component={CheckInVerification} />
       <Route path="/guests" component={ProtectedApp} />
       <Route path="/housekeeping" component={ProtectedApp} />
       <Route path="/maintenance" component={ProtectedApp} />

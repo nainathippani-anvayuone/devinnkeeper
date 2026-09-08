@@ -126,10 +126,17 @@ const [selectedCountry, setSelectedCountry] = useState(COUNTRY_CODES[0]);
 
   const createM = useMutation({
     mutationFn: (d: any) => apiClient.reservations.create(d),
-    onSuccess: () => {
+    onSuccess: (response: any) => {
       qc.invalidateQueries({ queryKey: ["reservations"] });
       qc.invalidateQueries({ queryKey: ["vehicles"] });
-      toast.success("Reservation created successfully");
+      const emailDelivery = response?.data?.emailDelivery;
+      if (emailDelivery?.emailSent) {
+        toast.success("Reservation created and check-in email sent");
+      } else if (emailDelivery) {
+        toast.warning(`Reservation created, but check-in email was not sent: ${emailDelivery.error || "SMTP delivery failed."}`);
+      } else {
+        toast.success("Reservation created successfully");
+      }
       setDialogOpen(false);
     },
     onError: (e: any) => toast.error(e?.response?.data?.error || "Failed to create reservation"),

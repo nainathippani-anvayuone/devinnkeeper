@@ -181,7 +181,23 @@ export default function CheckInVerification() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const targetResId = params.get("resId") || params.get("reservationId");
-    fetchReservations(targetResId);
+    const checkInToken = params.get("token");
+    if (checkInToken) {
+      sessionStorage.setItem("innkeeper_checkin_token", checkInToken);
+    }
+    if (targetResId && checkInToken) {
+      api.get("/checkin/access", { params: { resId: targetResId, token: checkInToken } })
+        .then((res) => {
+          const reservation = res.data?.reservation;
+          if (reservation) {
+            setReservations([reservation]);
+            setSelectedResId(String(reservation.id));
+          }
+        })
+        .catch((err) => toast.error(err?.response?.data?.error || "This check-in link is invalid or expired."));
+    } else {
+      fetchReservations(targetResId);
+    }
   }, []);
 
   const fetchReservations = async (preferredResId?: string | null) => {
@@ -285,6 +301,7 @@ export default function CheckInVerification() {
 
           try {
             const verifyResponse = await api.post("/checkin/payment/verify", {
+              reservationId: paymentData.reservation?.id,
               razorpayOrderId: orderId,
               razorpayPaymentId: paymentId,
               razorpaySignature: signature,
@@ -409,23 +426,8 @@ export default function CheckInVerification() {
     e.target.value = "";
   };
 
-  // Real-Time Facial Image Feature Comparison Algorithm
-  const computeRealtimeFacialMatch = async (img1: string, img2: string): Promise<{ isMatch: boolean; score: number }> => {
-    if (!img1 || !img2) return { isMatch: false, score: 35 };
-    const s1 = img1.slice(0, 1000);
-    const s2 = img2.slice(0, 1000);
-    let matches = 0;
-    const minLen = Math.min(s1.length, s2.length);
-    for (let i = 0; i < minLen; i += 3) {
-      if (s1[i] === s2[i]) matches++;
-    }
-    const similarity = Math.round((matches / (minLen / 3)) * 100);
-    const isMatch = similarity >= 75;
-    return { isMatch, score: similarity };
-  };
-
-  // Process ID Verification
-  const handleVerifyId = async (forceFail = false, forcePass = false) => {
+  // Process Driving Licence verification on the backend.
+  const handleVerifyId = async () => {
     const targetResId = selectedResId || (reservations.length > 0 ? String(reservations[0].id) : "");
     if (!targetResId) {
       toast.error("Please select a reservation first");
@@ -439,16 +441,8 @@ export default function CheckInVerification() {
       toast.error("Selected reservation is cancelled or inactive for check-in.");
       return;
     }
-    if (!dlImage && !selfieImage) {
-      toast.error("Please upload Driver License and capture Selfie photo before submitting.");
-      return;
-    }
     if (!dlImage) {
       toast.error("Please upload Driver License photo before submitting.");
-      return;
-    }
-    if (!selfieImage) {
-      toast.error("Please capture or upload Selfie photo before submitting.");
       return;
     }
 
@@ -588,15 +582,24 @@ export default function CheckInVerification() {
         return;
       }
 
+      if (!data.digitalPin || !data.lockId || !data.keyPayload) {
+        toast.error("The server did not return a valid digital key.");
+        return;
+      }
       setStep(3);
       setCheckInCompletedAnimation(true);
-      setDigitalKeyGenerated(false);
+      setKeyDetails({ digitalPin: data.digitalPin, lockId: data.lockId, keyPayload: data.keyPayload });
+      setDigitalKeyGenerated(true);
       toast.success("Check-in completed successfully!");
 
       qc.invalidateQueries({ queryKey: ["reservations"] });
       qc.invalidateQueries({ queryKey: ["rooms"] });
       qc.invalidateQueries({ queryKey: ["dashboard"] });
-      fetchReservations();
+      if (sessionStorage.getItem("innkeeper_checkin_token")) {
+        setReservations([data.reservation]);
+      } else {
+        fetchReservations();
+      }
     } catch (err: any) {
       setCompletingCheckIn(false);
       toast.error(err?.response?.data?.error || "Network error while completing check-in.");
@@ -612,18 +615,11 @@ export default function CheckInVerification() {
 
       const data = res.data;
       setGeneratingKey(false);
+      if (!data.success || !data.digitalPin || !data.lockId || !data.keyPayload) {
+        throw new Error(data.error || "The server did not return a valid digital key.");
+      }
 
-      const resIdNum = Number(selectedResId) || 1;
-      const roomNum = selectedReservation?.roomNumber || selectedReservation?.room?.room_number || selectedReservation?.room?.number || selectedReservation?.roomId || "101";
-      const uniquePin = data.digitalPin || String((resIdNum * 147382 + 582910) % 900000 + 100000);
-
-      const keyObj = {
-        digitalPin: uniquePin,
-        lockId: data.lockId || `SL-ROOM-${roomNum}`,
-        keyPayload: data.keyPayload || { encryptedKey: `a8f3b2e9c1d4e7f0a8b9c0d1e2f3a4b${resIdNum}` }
-      };
-
-      setKeyDetails(keyObj);
+      setKeyDetails({ digitalPin: data.digitalPin, lockId: data.lockId, keyPayload: data.keyPayload });
       setDigitalKeyGenerated(true);
       toast.success("Digital Room Key & Access PIN generated!");
 
@@ -633,18 +629,9 @@ export default function CheckInVerification() {
         qc.invalidateQueries({ queryKey: ["rooms"] });
         qc.invalidateQueries({ queryKey: ["dashboard"] });
       }
-    } catch (err) {
+    } catch (err: any) {
       setGeneratingKey(false);
-      const resIdNum = Number(selectedResId) || 1;
-      const roomNum = selectedReservation?.roomNumber || selectedReservation?.room?.room_number || selectedReservation?.room?.number || selectedReservation?.roomId || "101";
-      const uniquePin = String((resIdNum * 147382 + 582910) % 900000 + 100000);
-      setKeyDetails({
-        digitalPin: uniquePin,
-        lockId: `SL-ROOM-${roomNum}`,
-        keyPayload: { encryptedKey: `a8f3b2e9c1d4e7f0a8b9c0d1e2f3a4b${resIdNum}` }
-      });
-      setDigitalKeyGenerated(true);
-      toast.success("Digital Room Key & Access PIN generated!");
+      toast.error(err?.response?.data?.error || err?.message || "Unable to generate the digital key.");
     }
   };
 
@@ -909,7 +896,7 @@ export default function CheckInVerification() {
                   <>
                     {selectedReservation && selectedReservation.verificationStatus === 'REJECTED' && (
                       <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-700 dark:text-rose-300 text-xs font-bold flex items-center justify-between">
-                        <span>✕ Identity Verification Rejected! Faces did not match. Please upload matching photos.</span>
+                        <span>✕ Driving Licence verification failed. Please upload a clear, valid licence that matches the reservation guest.</span>
                       </div>
                     )}
 
@@ -1052,7 +1039,7 @@ export default function CheckInVerification() {
                   </div>
                   <Button
                     onClick={() => {
-                      handleVerifyId(false, false);
+                      handleVerifyId();
                     }}
                     disabled={verifying}
                     className="w-full sm:w-auto h-14 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-base font-extrabold px-10 gap-3 shadow-xl shadow-blue-500/25 cursor-pointer disabled:opacity-50 transition hover:scale-102"
@@ -1080,7 +1067,7 @@ export default function CheckInVerification() {
           <div className="flex justify-between items-center pb-1">
             <div>
               <p className="text-xs font-medium text-muted-foreground">
-                Collect payment online via Razorpay, or record cash/card taken at the front desk.
+                Complete the reservation payment securely through Razorpay Checkout.
               </p>
             </div>
             <Button variant="ghost" size="sm" onClick={() => setStep(1)} className="rounded-xl text-xs">
@@ -1132,31 +1119,6 @@ export default function CheckInVerification() {
               )}
             </Button>
 
-            <div className="relative py-1 text-center">
-              <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-dashed border-border" /></div>
-              <span className="relative bg-card px-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">or</span>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <Button
-                type="button"
-                variant="outline"
-                disabled={submittingBooking}
-                onClick={() => handleManualPayment("Cash")}
-                className="h-11 rounded-2xl text-sm font-semibold"
-              >
-                Cash at Desk
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                disabled={submittingBooking}
-                onClick={() => handleManualPayment("Card")}
-                className="h-11 rounded-2xl text-sm font-semibold"
-              >
-                Card at Desk
-              </Button>
-            </div>
           </form>
         </div>
       )}
@@ -1236,19 +1198,7 @@ export default function CheckInVerification() {
                   </div>
 
                   <Button
-                    onClick={() => {
-                      const resIdNum = Number(selectedResId) || 1;
-                      const roomNum = selectedReservation?.roomNumber || selectedReservation?.room?.room_number || selectedReservation?.room?.number || selectedReservation?.roomId || "101";
-                      const uniquePin = String((resIdNum * 147382 + 582910) % 900000 + 100000);
-                      setKeyDetails({
-                        digitalPin: uniquePin,
-                        lockId: `SL-ROOM-${roomNum}`,
-                        keyPayload: { encryptedKey: `a8f3b2e9c1d4e7f0a8b9c0d1e2f3a4b${resIdNum}` }
-                      });
-                      setDigitalKeyGenerated(true);
-                      toast.success("Digital Room Key generated successfully!");
-                      handleGenerateDigitalKey();
-                    }}
+                    onClick={handleGenerateDigitalKey}
                     disabled={generatingKey}
                     className="w-full h-14 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-base font-extrabold shadow-xl shadow-blue-600/30 flex items-center justify-center gap-3 cursor-pointer"
                   >

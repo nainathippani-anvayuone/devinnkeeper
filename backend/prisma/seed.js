@@ -3,6 +3,11 @@ import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
+async function findOrCreate(model, where, data) {
+  const existing = await model.findFirst({ where });
+  return existing || model.create({ data });
+}
+
 async function main() {
   console.log('🌱 Seeding database...');
 
@@ -109,11 +114,7 @@ async function main() {
 
   const guests = [];
   for (const g of guestData) {
-    const guest = await prisma.guest.upsert({
-      where: { id: guests.length + 1 },
-      update: {},
-      create: g,
-    }).catch(() => prisma.guest.create({ data: g }));
+    const guest = await findOrCreate(prisma.guest, { email: g.email }, g);
     guests.push(guest);
   }
   console.log(`✅ ${guests.length} guests seeded`);
@@ -142,8 +143,12 @@ async function main() {
     const checkOut = new Date(checkIn);
     checkOut.setDate(checkIn.getDate() + r.nights);
 
-    const res = await prisma.reservation.create({
-      data: {
+    const res = await findOrCreate(prisma.reservation, {
+      guestId: guests[r.guestIdx]?.id,
+      roomId: rooms[r.roomIdx]?.id,
+      checkIn,
+      checkOut,
+    }, {
         guestId: guests[r.guestIdx]?.id,
         roomId: rooms[r.roomIdx]?.id,
         checkIn,
@@ -153,7 +158,6 @@ async function main() {
         paidAmount: r.paid,
         source: r.source,
         notes: r.status === 'confirmed' ? 'Early check-in requested' : null,
-      },
     });
     reservations.push(res);
   }
@@ -165,14 +169,17 @@ async function main() {
     const r = reservations[i];
     const rd = reservationData[i];
     if (rd.paid > 0) {
-      await prisma.payment.create({
-        data: {
+      await findOrCreate(prisma.payment, {
+        reservationId: r.id,
+        amount: rd.paid,
+        method: paymentMethods[i % paymentMethods.length],
+        paymentStatus: rd.status === 'cancelled' ? 'Refunded' : 'Paid',
+      }, {
           reservationId: r.id,
           amount: rd.paid,
           method: paymentMethods[i % paymentMethods.length],
           paymentStatus: rd.status === 'cancelled' ? 'Refunded' : 'Paid',
           notes: `Check-in payment collected for reservation #${r.id}`,
-        },
       });
     }
   }
@@ -187,31 +194,29 @@ async function main() {
     { make: 'Tata', model: 'Nexon', licensePlate: 'MH12IJ7890', state: 'Maharashtra', parkingSlot: null },
   ];
   for (const v of vehicleData) {
-    await prisma.vehicle.create({ data: v });
+    await findOrCreate(prisma.vehicle, { licensePlate: v.licensePlate }, v);
   }
   console.log(`✅ Vehicles seeded`);
 
   // ─── Cash Ledger ──────────────────────────────────────────
-  await prisma.cashLedger.create({ data: { employeeName: 'Priya Mehta', openingCash: 5000, closingCash: 0, status: 'open', notes: 'Morning shift' } });
-  await prisma.cashLedger.create({ data: { employeeName: 'Rahul Verma', openingCash: 3000, closingCash: 7500, status: 'closed', notes: 'Night shift completed' } });
+  await findOrCreate(prisma.cashLedger, { employeeName: 'Priya Mehta', openingCash: 5000, status: 'open' }, { employeeName: 'Priya Mehta', openingCash: 5000, closingCash: 0, status: 'open', notes: 'Morning shift' });
+  await findOrCreate(prisma.cashLedger, { employeeName: 'Rahul Verma', openingCash: 3000, status: 'closed' }, { employeeName: 'Rahul Verma', openingCash: 3000, closingCash: 7500, status: 'closed', notes: 'Night shift completed' });
   console.log(`✅ Cash ledger seeded`);
 
   // ─── Shift Audits ─────────────────────────────────────────
-  await prisma.shiftAudit.create({ data: { employeeName: 'Admin User', openingCash: 5000, closingCash: 12500, status: 'closed', notes: 'Morning audit complete' } });
-  await prisma.shiftAudit.create({ data: { employeeName: 'Priya Mehta', openingCash: 12500, closingCash: 0, status: 'open', notes: 'Afternoon shift' } });
+  await findOrCreate(prisma.shiftAudit, { employeeName: 'Admin User', openingCash: 5000, status: 'closed' }, { employeeName: 'Admin User', openingCash: 5000, closingCash: 12500, status: 'closed', notes: 'Morning audit complete' });
+  await findOrCreate(prisma.shiftAudit, { employeeName: 'Priya Mehta', openingCash: 12500, status: 'open' }, { employeeName: 'Priya Mehta', openingCash: 12500, closingCash: 0, status: 'open', notes: 'Afternoon shift' });
   console.log(`✅ Shift audits seeded`);
 
   // ─── Housekeeping ─────────────────────────────────────────
   const hkStatuses = ['pending', 'in-progress', 'clean', 'inspected'];
   const hkRooms = rooms.slice(0, 15);
   for (let i = 0; i < hkRooms.length; i++) {
-    await prisma.housekeeping.create({
-      data: {
+    await findOrCreate(prisma.housekeeping, { roomId: hkRooms[i].id, status: hkStatuses[i % hkStatuses.length] }, {
         roomId: hkRooms[i].id,
         status: hkStatuses[i % hkStatuses.length],
         assignedTo: ['Lakshmi', 'Sunita', 'Kavya', 'Renu'][i % 4],
         notes: i % 3 === 0 ? 'Guest requests extra towels' : null,
-      },
     });
   }
   console.log(`✅ Housekeeping seeded`);
@@ -225,7 +230,7 @@ async function main() {
     { roomId: rooms[20]?.id, issue: 'WiFi connectivity issue', priority: 'high', status: 'in-progress' },
   ];
   for (const m of maintenanceData) {
-    await prisma.maintenance.create({ data: m });
+    await findOrCreate(prisma.maintenance, { roomId: m.roomId, issue: m.issue }, m);
   }
   console.log(`✅ Maintenance seeded`);
 
@@ -238,7 +243,7 @@ async function main() {
     { type: 'system', title: 'Daily Report Available', message: 'August 5th occupancy report is ready for download', isRead: true },
   ];
   for (const n of notifData) {
-    await prisma.appNotification.create({ data: n });
+    await findOrCreate(prisma.appNotification, { type: n.type, title: n.title }, n);
   }
   console.log(`✅ Notifications seeded`);
 
@@ -266,14 +271,12 @@ async function main() {
     d.setDate(today.getDate() - i);
     const dateStr = d.toISOString().split('T')[0];
     const occ = 55 + Math.floor(Math.random() * 35);
-    await prisma.occupancyHistory.create({
-      data: {
+    await findOrCreate(prisma.occupancyHistory, { date: dateStr, room_type: 'all' }, {
         date: dateStr,
         room_type: 'all',
         occupancy_percentage: occ,
         total_rooms: rooms.length,
         occupied_rooms: Math.floor(rooms.length * occ / 100),
-      },
     }).catch(() => {});
   }
 

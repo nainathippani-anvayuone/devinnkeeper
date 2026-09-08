@@ -2,6 +2,7 @@ import express from 'express';
 
 // Middleware
 import { authenticateToken } from '../middleware/authMiddleware.js';
+import { authenticateTokenOrCheckInAccess } from '../utils/checkinAccess.js';
 import { requireRole } from '../middleware/rbac.js';
 
 // Auth
@@ -76,6 +77,7 @@ import { getWeather } from '../controllers/weatherController.js';
 import { getRoomAvailability } from '../controllers/roomAvailabilityController.js';
 import {
   createBookingWithPayment,
+  getGuestCheckInAccess,
   verifyGuestId,
   processCheckInPayment,
   processManualCheckInPayment,
@@ -101,14 +103,15 @@ router.post('/auth/reset-password', resetPassword);
 
 // ─── Check-In & Digital Lock Key Generation (Protected / Verified) ─
 router.post('/checkin/book-with-payment', authenticateToken, createBookingWithPayment);
-router.post('/checkin/verify-id', authenticateToken, verifyGuestId);
-router.post('/checkin/process-payment', authenticateToken, processCheckInPayment);
+router.get('/checkin/access', getGuestCheckInAccess);
+router.post('/checkin/verify-id', authenticateTokenOrCheckInAccess, verifyGuestId);
+router.post('/checkin/process-payment', authenticateTokenOrCheckInAccess, processCheckInPayment);
 router.post('/checkin/manual-payment', authenticateToken, processManualCheckInPayment);
-router.post('/checkin/payment/order', authenticateToken, createPaymentOrder);
-router.post('/checkin/payment/verify', authenticateToken, verifyPayment);
-router.post('/checkin/generate-lock-key', authenticateToken, generateDigitalLockKey);
-router.post('/checkin/unlock-door', authenticateToken, unlockDoor);
-router.post('/checkin/complete', authenticateToken, completeGuestCheckIn);
+router.post('/checkin/payment/order', authenticateTokenOrCheckInAccess, createPaymentOrder);
+router.post('/checkin/payment/verify', authenticateTokenOrCheckInAccess, verifyPayment);
+router.post('/checkin/generate-lock-key', authenticateTokenOrCheckInAccess, generateDigitalLockKey);
+router.post('/checkin/unlock-door', authenticateTokenOrCheckInAccess, unlockDoor);
+router.post('/checkin/complete', authenticateTokenOrCheckInAccess, completeGuestCheckIn);
 
 // ─── Rooms ─────────────────────────────────────────────────
 router.get('/rooms', authenticateToken, listRoomsNew);
