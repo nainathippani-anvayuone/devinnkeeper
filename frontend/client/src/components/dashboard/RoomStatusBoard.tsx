@@ -310,13 +310,9 @@ export default function RoomStatusBoard({ rooms, onRoomClick }: RoomStatusBoardP
                 className="bg-transparent text-xs font-semibold text-foreground focus:outline-none cursor-pointer pr-1"
                 aria-label="Order rooms"
               >
-                <option value="floor-asc" className="bg-card text-foreground">Floor & Room (1 → 150)</option>
-                <option value="floor-desc" className="bg-card text-foreground">Floor & Room (150 → 1)</option>
-                <option value="room-asc" className="bg-card text-foreground">Room # (Low to High)</option>
-                <option value="room-desc" className="bg-card text-foreground">Room # (High to Low)</option>
+                <option value="floor-asc" className="bg-card text-foreground">Floor & Room (Default)</option>
                 <option value="rate-asc" className="bg-card text-foreground">Rate (Low to High)</option>
                 <option value="rate-desc" className="bg-card text-foreground">Rate (High to Low)</option>
-                <option value="status" className="bg-card text-foreground">Status (Vacant, Occupied...)</option>
               </select>
             </div>
 
@@ -579,8 +575,8 @@ export default function RoomStatusBoard({ rooms, onRoomClick }: RoomStatusBoardP
                       animate="show"
                       className={
                         viewMode === "compact"
-                          ? "grid grid-cols-2 min-[440px]:grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-2 sm:gap-2.5"
-                          : "grid grid-cols-1 min-[360px]:grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-3 sm:gap-3.5"
+                          ? "grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-2 sm:gap-2.5"
+                          : "grid grid-cols-2 xs:grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-2.5 sm:gap-3.5"
                       }
                     >
                       {floorRooms.map((room) => {
@@ -657,9 +653,9 @@ export default function RoomStatusBoard({ rooms, onRoomClick }: RoomStatusBoardP
 
                             {/* Bottom Details */}
                             <div className="space-y-1.5 pt-1.5 border-t border-border/50">
-                              <div className="flex items-center justify-between gap-1.5 min-w-0">
+                              <div className="flex flex-wrap items-center justify-between gap-1 min-w-0">
                                 <Badge
-                                  className="text-[10px] px-1.5 sm:px-2 py-0.5 font-semibold capitalize shrink-0 border-0"
+                                  className="text-[9px] sm:text-[10px] px-1 sm:px-1.5 py-0.5 font-semibold capitalize shrink-0 border-0 truncate max-w-[90px]"
                                   style={{
                                     backgroundColor: `${config.dotColor}18`,
                                     color: config.dotColor,
@@ -667,7 +663,7 @@ export default function RoomStatusBoard({ rooms, onRoomClick }: RoomStatusBoardP
                                 >
                                   {sKey === "maintenance" ? "Out of Order" : t(`dashboard.${config.key}`)}
                                 </Badge>
-                                <span className="text-xs sm:text-sm font-bold text-foreground shrink-0">
+                                <span className="text-xs sm:text-sm font-bold text-foreground shrink-0 whitespace-nowrap">
                                   ₹{Number(room.rate).toLocaleString()}
                                 </span>
                               </div>
@@ -678,7 +674,7 @@ export default function RoomStatusBoard({ rooms, onRoomClick }: RoomStatusBoardP
                                   <span>{room.capacity}</span>
                                 </div>
                                 <div
-                                  className="flex items-center gap-0.5 font-medium truncate"
+                                  className="flex items-center gap-0.5 font-medium truncate max-w-[95px]"
                                   style={{ color: config.dotColor }}
                                 >
                                   <StatusIcon className="h-3 w-3 shrink-0" />

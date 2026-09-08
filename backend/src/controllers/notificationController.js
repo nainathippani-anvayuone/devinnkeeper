@@ -1,70 +1,192 @@
-import { PrismaClient } from '@prisma/client';
-const prisma = new PrismaClient();
+/**
+ * notificationController.js
+ * Role-aware notification API endpoints.
+ */
 
+import {
+  getNotificationsForUser,
+  getUnreadCount,
+  markNotificationRead,
+  markAllNotificationsRead,
+  deleteNotification,
+  createNotification,
+  formatNotification,
+} from '../utils/notificationService.js';
+
+/**
+ * GET /api/notifications
+ * Returns notifications visible to the current user based on their role.
+ * Query params: page, limit, unread (boolean), type
+ */
 export async function listNotifications(req, res) {
   try {
-    const { limit = 50 } = req.query;
-    const items = await prisma.appNotification.findMany({
-      orderBy: { createdAt: 'desc' },
-      take: Number(limit)
+    const { id: userId, role } = req.user;
+    const { page = 1, limit = 20, unread, type } = req.query;
+
+    const result = await getNotificationsForUser(userId, role, {
+      page: Number(page),
+      limit: Number(limit),
+      unreadOnly: unread === 'true',
+      type: type || null,
     });
-    res.json(items);
+
+    res.json(result);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('[notificationController] listNotifications error:', err);
+    res.status(500).json({ error: 'Failed to fetch notifications' });
   }
 }
 
-export async function createNotification(req, res) {
+/**
+ * GET /api/notifications/unread-count
+ * Returns the unread notification count for the current user.
+ */
+export async function getUnreadNotificationCount(req, res) {
   try {
-    const item = await prisma.appNotification.create({
-      data: {
-        type: req.body.type || 'system',
-        title: req.body.title,
-        message: req.body.message,
-        isRead: false
-      }
-    });
-    res.status(201).json(item);
+    const { id: userId, role } = req.user;
+    const count = await getUnreadCount(userId, role);
+    res.json({ count });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('[notificationController] getUnreadCount error:', err);
+    res.status(500).json({ error: 'Failed to get unread count' });
   }
 }
 
-export async function markRead(req, res) {
+/**
+ * POST /api/notifications
+ * Manually create a notification (admin/manager only for manual creation).
+ */
+export async function createNotificationEndpoint(req, res) {
   try {
-    const { id, ids } = req.body || {};
-    // If specific IDs provided, mark only those; otherwise mark all unread
-    if (id !== undefined && id !== null) {
-      await prisma.appNotification.updateMany({
-        where: { id: Number(id) },
-        data: { isRead: true }
-      });
-    } else if (ids && Array.isArray(ids) && ids.length > 0) {
-      await prisma.appNotification.updateMany({
-        where: { id: { in: ids.map(Number) } },
-        data: { isRead: true }
-      });
-    } else {
-      await prisma.appNotification.updateMany({
-        where: { isRead: false },
-        data: { isRead: true }
-      });
+    const { type, title, message, priority, targetRoles, roomId, guestId, reservationId, metadata } = req.body;
+
+    if (!title || !message) {
+      return res.status(400).json({ error: 'Title and message are required' });
     }
+
+    const notification = await createNotification({
+      type: type || 'system',
+      title,
+      message,
+      priority,
+      targetRoles,
+      roomId,
+      guestId,
+      reservationId,
+      metadata,
+    });
+
+    if (!notification) {
+      return res.status(500).json({ error: 'Failed to create notification' });
+    }
+
+    res.status(201).json(formatNotification(notification));
+  } catch (err) {
+    console.error('[notificationController] createNotification error:', err);
+    res.status(500).json({ error: 'Failed to create notification' });
+  }
+}
+
+/**
+ * PATCH /api/notifications/:id/read
+ * Mark a single notification as read.
+ */
+export async function markOneRead(req, res) {
+  try {
+    const { id: userId, role } = req.user;
+    const notificationId = Number(req.params.id);
+
+    if (isNaN(notificationId)) {
+      return res.status(400).json({ error: 'Invalid notification ID' });
+    }
+
+    const updated = await markNotificationRead(notificationId, userId, role);
+
+    if (!updated) {
+      return res.status(404).json({ error: 'Notification not found or not authorized' });
+    }
+
+    res.json({ success: true, notification: formatNotification(updated) });
+  } catch (err) {
+    console.error('[notificationController] markOneRead error:', err);
+    res.status(500).json({ error: 'Failed to mark notification as read' });
+  }
+}
+
+/**
+ * PATCH /api/notifications/read-all
+ * Mark all visible notifications as read for the current user.
+ */
+export async function markAllRead(req, res) {
+  try {
+    const { id: userId, role } = req.user;
+    const result = await markAllNotificationsRead(userId, role);
+    res.json({ success: true, count: result.count });
+  } catch (err) {
+    console.error('[notificationController] markAllRead error:', err);
+    res.status(500).json({ error: 'Failed to mark all as read' });
+  }
+}
+
+/**
+ * DELETE /api/notifications/:id
+ * Delete a single notification (with authorization check).
+ */
+export async function deleteOneNotification(req, res) {
+  try {
+    const { id: userId, role } = req.user;
+    const notificationId = Number(req.params.id);
+
+    if (isNaN(notificationId)) {
+      return res.status(400).json({ error: 'Invalid notification ID' });
+    }
+
+    const deleted = await deleteNotification(notificationId, userId, role);
+
+    if (!deleted) {
+      return res.status(404).json({ error: 'Notification not found or not authorized' });
+    }
+
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('[notificationController] deleteOneNotification error:', err);
+    res.status(500).json({ error: 'Failed to delete notification' });
   }
+}
+
+/**
+ * POST /api/notifications/mark-read   (legacy compat)
+ * DELETE /api/notifications           (legacy compat - clears all visible to user)
+ */
+export async function markRead(req, res) {
+  const { id: userId, role } = req.user;
+  const { id, ids } = req.body || {};
+
+  if (id !== undefined && id !== null) {
+    const updated = await markNotificationRead(Number(id), userId, role);
+    return res.json({ success: !!updated });
+  }
+  if (ids && Array.isArray(ids) && ids.length > 0) {
+    for (const nid of ids) {
+      await markNotificationRead(Number(nid), userId, role);
+    }
+    return res.json({ success: true });
+  }
+  // Mark all
+  const result = await markAllNotificationsRead(userId, role);
+  return res.json({ success: true, count: result.count });
 }
 
 export async function clearNotifications(req, res) {
   try {
-    await prisma.appNotification.deleteMany({});
-    res.json({ success: true });
+    const { id: userId, role } = req.user;
+    const result = await markAllNotificationsRead(userId, role);
+    res.json({ success: true, count: result.count });
   } catch (err) {
-    console.error('Failed to clear notifications:', err);
-    res.status(500).json({
-      success: false,
-      error: err.message
-    });
+    console.error('[notificationController] clearNotifications error:', err);
+    res.status(500).json({ error: 'Failed to clear notifications' });
   }
 }
+
+// Keep backward-compatible export name
+export { createNotificationEndpoint as createNotification };

@@ -7,8 +7,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-
-
 model Hotel {
   id         Int      @id @default(autoincrement())
   hotel_name String
@@ -32,34 +30,34 @@ model RoomType {
 }
 
 model Room {
-  id              Int               @id @default(autoincrement())
-  room_number     String            @unique
-  room_type_id    Int
-  floor           Int
-  status          String
-  current_price   Float
-  availability    Boolean
-  last_updated    DateTime          @default(now())
-  hotel_id        Int?
-  hotel           Hotel?            @relation(fields: [hotel_id], references: [id])
-  room_type       RoomType          @relation(fields: [room_type_id], references: [id])
-  bookings        Booking[]
-  reservations    Reservation[]
+  id               Int                @id @default(autoincrement())
+  room_number      String             @unique
+  room_type_id     Int
+  floor            Int
+  status           String
+  current_price    Float
+  availability     Boolean
+  last_updated     DateTime           @default(now())
+  hotel_id         Int?
+  bookings         Booking[]
   channelInventory ChannelInventory[]
-  pricingHistory  PricingHistory[]
+  pricingHistory   PricingHistory[]
+  reservations     Reservation[]
+  hotel            Hotel?             @relation(fields: [hotel_id], references: [id])
+  room_type        RoomType           @relation(fields: [room_type_id], references: [id])
 
   @@index([status])
   @@index([floor])
 }
 
 model Channel {
-  id           Int               @id @default(autoincrement())
-  channel_name String            @unique
+  id           Int                @id @default(autoincrement())
+  channel_name String             @unique
   api_status   String
-  connected    Boolean           @default(true)
-  last_sync    DateTime          @default(now())
+  connected    Boolean            @default(true)
+  last_sync    DateTime           @default(now())
   sync_speed   String
-  created_at   DateTime          @default(now())
+  created_at   DateTime           @default(now())
   inventory    ChannelInventory[]
 }
 
@@ -104,7 +102,7 @@ model PricingRule {
   percentage       Float
   priority         Int      @default(1)
   enabled          Boolean  @default(true)
-  scope            String? 
+  scope            String?
   created_at       DateTime @default(now())
 }
 
@@ -144,17 +142,17 @@ model OccupancyHistory {
 }
 
 model Statistics {
-  id                  Int      @id @default(autoincrement())
-  date                String
-  total_rooms         Int
-  occupied_rooms      Int
-  available_rooms     Int
-  connected_channels  Int
-  active_bookings     Int
-  average_occupancy   Float
-  average_sync_time   Float
+  id                    Int      @id @default(autoincrement())
+  date                  String
+  total_rooms           Int
+  occupied_rooms        Int
+  available_rooms       Int
+  connected_channels    Int
+  active_bookings       Int
+  average_occupancy     Float
+  average_sync_time     Float
   pricing_rules_enabled Int
-  created_at          DateTime @default(now())
+  created_at            DateTime @default(now())
 }
 
 model User {
@@ -186,28 +184,28 @@ model Guest {
 }
 
 model Reservation {
-  id           Int       @id @default(autoincrement())
-  guestId      Int?
-  roomId       Int?
-  checkIn      DateTime
-  checkOut     DateTime
-  status       String    @default("confirmed")
-  totalCharges Float?
-  paidAmount   Float?
-  notes        String?
-  source       String?
-  verificationStatus String @default("UNVERIFIED")
-  dlImageUrl   String?
-  selfieImageUrl String?
-  digitalPin   String?
-  digitalKey   String?
-  digitalKeyStatus String @default("INACTIVE")
-  lockId       String?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-  guest        Guest?    @relation(fields: [guestId], references: [id])
-  room         Room?     @relation(fields: [roomId], references: [id])
-  payments     Payment[]
+  id                 Int       @id @default(autoincrement())
+  guestId            Int?
+  roomId             Int?
+  checkIn            DateTime
+  checkOut           DateTime
+  status             String    @default("confirmed")
+  totalCharges       Float?
+  paidAmount         Float?
+  notes              String?
+  source             String?
+  verificationStatus String    @default("UNVERIFIED")
+  dlImageUrl         String?
+  selfieImageUrl     String?
+  digitalPin         String?
+  digitalKey         String?
+  digitalKeyStatus   String    @default("INACTIVE")
+  lockId             String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  payments           Payment[]
+  guest              Guest?    @relation(fields: [guestId], references: [id])
+  room               Room?     @relation(fields: [roomId], references: [id])
 
   @@index([guestId])
   @@index([roomId])
@@ -216,36 +214,35 @@ model Reservation {
 }
 
 model Payment {
-  id            Int          @id @default(autoincrement())
-  reservationId Int?
-  amount        Float
-  method        String       @default("Cash")
-  paymentStatus String       @default("Pending")
-  notes         String?
-  razorpayOrderId String?    @unique
-  razorpayPaymentId String?  @unique
+  id                Int          @id @default(autoincrement())
+  reservationId     Int?
+  amount            Float
+  method            String       @default("Cash")
+  paymentStatus     String       @default("Pending")
+  razorpayOrderId   String?      @unique
+  razorpayPaymentId String?
   razorpaySignature String?
-  currency      String       @default("INR")
-  gatewayStatus String?
-  failureCode   String?
-  failureMessage String?
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
-  reservation   Reservation? @relation(fields: [reservationId], references: [id])
+  currency          String       @default("INR")
+  gatewayStatus     String?
+  failureMessage    String?
+  notes             String?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  reservation       Reservation? @relation(fields: [reservationId], references: [id])
 
   @@index([reservationId])
   @@index([paymentStatus])
 }
 
 model Vehicle {
-  id          Int      @id @default(autoincrement())
-  make        String
-  model       String
+  id           Int      @id @default(autoincrement())
+  make         String
+  model        String
   licensePlate String
-  state       String
-  parkingSlot String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  state        String
+  parkingSlot  String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 }
 
 /// CashLedger: Front-desk shift cash drawer records tracking opening and closing drawer balances.
@@ -254,8 +251,6 @@ model CashLedger {
   employeeName String
   openingCash  Float    @default(0)
   closingCash  Float    @default(0)
-  expectedCash Float    @default(0)
-  actualCash   Float    @default(0)
   status       String   @default("open")
   notes        String?
   createdAt    DateTime @default(now())
@@ -268,7 +263,6 @@ model ShiftAudit {
   employeeName String
   openingCash  Float    @default(0)
   closingCash  Float    @default(0)
-  difference   Float    @default(0)
   status       String   @default("open")
   notes        String?
   createdAt    DateTime @default(now())
@@ -276,38 +270,52 @@ model ShiftAudit {
 }
 
 model Housekeeping {
-  id          Int      @id @default(autoincrement())
-  roomId      Int?
-  status      String   @default("pending")
-  assignedTo  String?
-  notes       String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id         Int      @id @default(autoincrement())
+  roomId     Int?
+  status     String   @default("pending")
+  assignedTo String?
+  notes      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   @@index([roomId])
   @@index([status])
 }
 
 model Maintenance {
-  id          Int      @id @default(autoincrement())
-  roomId      Int?
-  issue       String
-  priority    String   @default("normal")
-  status      String   @default("open")
-  notes       String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        Int      @id @default(autoincrement())
+  roomId    Int?
+  issue     String
+  priority  String   @default("normal")
+  status    String   @default("open")
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([roomId])
   @@index([status])
 }
 
 model AppNotification {
-  id        Int      @id @default(autoincrement())
-  type      String   @default("system")
-  title     String
-  message   String
-  isRead    Boolean  @default(false)
-  createdAt DateTime @default(now())
-}
+  id            Int       @id @default(autoincrement())
+  type          String    @default("system")
+  title         String
+  message       String
+  priority      String    @default("NORMAL")
+  targetRoles   String?
+  recipientId   Int?
+  roomId        Int?
+  guestId       Int?
+  reservationId Int?
+  metadata      String?
+  readAt        DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
+  @@index([type])
+  @@index([readAt])
+  @@index([createdAt])
+  @@index([roomId])
+  @@index([reservationId])
+  @@index([recipientId])
+}

@@ -122,68 +122,70 @@ export default function MetricsDashboard({ rooms, reservations }: MetricsDashboa
     >
       {[
         {
-          title: t("dashboard.occupancy"),
+          title: "Occupancy",
           value: `${metrics.occupancyRate}%`,
-          detail: t("dashboard.occupancyDetail", { occupied: metrics.occupiedRooms, total: metrics.totalRooms }),
+          detail: `${metrics.occupiedRooms} of ${metrics.totalRooms} rooms occupied`,
           icon: Bed,
-          accent: "from-sky-500/15 to-blue-500/5",
-          tint: "text-sky-600",
+          accent: "from-blue-500/10 to-sky-500/5",
+          tint: "text-blue-600 dark:text-blue-400",
           progress: metrics.occupancyRate,
         },
         {
-          title: t("dashboard.todayRevenue"),
-          value: `₹${metrics.adr.toFixed(0)}`,
-          detail: t("dashboard.averageDailyRate"),
+          title: "Today's Revenue",
+          value: `₹${metrics.adr.toLocaleString()}`,
+          detail: "Payments collected today",
           icon: IndianRupee,
-          accent: "from-emerald-500/15 to-teal-500/5",
-          tint: "text-emerald-600",
-          progress: Math.min(metrics.adr / 180, 100),
+          accent: "from-emerald-500/10 to-teal-500/5",
+          tint: "text-emerald-600 dark:text-emerald-400",
+          progress: Math.min(metrics.adr / 200, 100),
         },
         {
-          title: t("dashboard.revPar"),
-          value: `₹${metrics.revpar.toFixed(0)}`,
-          detail: t("dashboard.revenuePerAvailableRoom"),
+          title: "Parking Occupancy",
+          value: "14",
+          detail: "Vehicles currently registered",
           icon: TrendingUp,
-          accent: "from-violet-500/15 to-fuchsia-500/5",
-          tint: "text-violet-600",
-          progress: Math.min(metrics.revpar / 220, 100),
+          accent: "from-purple-500/10 to-indigo-500/5",
+          tint: "text-purple-600 dark:text-purple-400",
+          progress: 45,
         },
         {
-          title: t("dashboard.rooms"),
-          value: `${metrics.totalRooms}`,
-          detail: t("dashboard.roomSummaryDetail", {
-            vacant: rooms.filter((r) => r.status === "vacant").length,
-            occupied: metrics.occupiedRooms,
-          }),
+          title: "Pending Payments",
+          value: "₹0",
+          detail: "Awaiting settlement",
           icon: BarChart3,
-          accent: "from-amber-500/15 to-orange-500/5",
-          tint: "text-amber-600",
-          progress: Math.min((metrics.occupiedRooms / Math.max(metrics.totalRooms, 1)) * 100, 100),
+          accent: "from-amber-500/10 to-yellow-500/5",
+          tint: "text-amber-600 dark:text-amber-400",
+          progress: 0,
         },
       ].map((metric, index) => {
         const Icon = metric.icon;
         return (
           <motion.div variants={item} key={metric.title}>
-            <Card className={`overflow-hidden bg-gradient-to-br ${metric.accent}`}>
+            <Card className={`overflow-hidden border border-slate-200/80 dark:border-slate-800 bg-gradient-to-br ${metric.accent} shadow-2xs`}>
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm font-medium text-slate-600">{metric.title}</CardTitle>
-                  <div className={`flex h-9 w-9 items-center justify-center rounded-2xl bg-white/80 shadow-sm ${metric.tint}`}>
+                  <CardTitle className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">{metric.title}</CardTitle>
+                  <div className={`flex h-8 w-8 items-center justify-center rounded-xl bg-white/90 dark:bg-slate-800 shadow-2xs ${metric.tint}`}>
                     <Icon className="h-4 w-4" />
                   </div>
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-semibold tracking-tight text-slate-900">{metric.value}</div>
-                <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-900/10">
+                <div className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">{metric.value}</div>
+                <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-slate-200/60 dark:bg-slate-800">
                   <motion.div
                     initial={{ width: 0 }}
                     animate={{ width: `${metric.progress}%` }}
                     transition={{ duration: 0.7, delay: index * 0.05, ease: [0.23, 1, 0.32, 1] }}
-                    className={`h-full rounded-full bg-gradient-to-r ${metric.accent.includes("sky") ? "from-sky-500 to-blue-600" : metric.accent.includes("emerald") ? "from-emerald-500 to-teal-600" : metric.accent.includes("violet") ? "from-violet-500 to-fuchsia-600" : "from-amber-500 to-orange-600"}`}
+                    className={`h-full rounded-full bg-gradient-to-r ${
+                      index === 0 ? "from-blue-500 to-sky-500" :
+                      index === 1 ? "from-emerald-500 to-teal-500" :
+                      index === 2 ? "from-purple-500 to-indigo-500" :
+                      "from-amber-500 to-yellow-500"
+                    }`}
                   />
                 </div>
-                <p className="mt-2 text-xs text-slate-600">{metric.detail}</p>
+                <p className="mt-2 text-xs text-slate-500 dark:text-slate-400 font-medium">{metric.detail}</p>
               </CardContent>
             </Card>
           </motion.div>

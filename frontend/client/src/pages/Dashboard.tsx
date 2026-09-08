@@ -195,39 +195,8 @@ export default function Dashboard() {
               {getDashboardLocaleDate()}
             </p>
           </div>
-
-          <div className="flex items-center gap-3">
-           
-            <Button
-              variant="ghost"
-              size="icon"
-              className="relative rounded-2xl cursor-pointer"
-              onClick={() => setShowNotifications(!showNotifications)}
-            >
-              {unreadCount > 0 ? <Bell className="h-5 w-5" /> : <BellOff className="h-5 w-5" />}
-              {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-[10px] font-medium text-destructive-foreground">
-                  {unreadCount > 9 ? "9+" : unreadCount}
-                </span>
-              )}
-            </Button>
-          </div>
         </div>
       </div>
-
-      {/* Notification Center */}
-      <AnimatePresence>
-        {showNotifications && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.2 }}
-          >
-            <NotificationCenter onClose={() => setShowNotifications(false)} />
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -272,15 +241,15 @@ export default function Dashboard() {
           {/* Module 5 widgets */}
           <Module5Widgets />
 
-          {/* Room Status Board */}
-          <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
-            <div className="xl:col-span-3">
+          {/* Room Status Board & Right-side Arrivals/Departures */}
+          <div className="grid grid-cols-1 2xl:grid-cols-4 gap-6">
+            <div className="2xl:col-span-3 min-w-0">
               <RoomStatusBoard
                 rooms={filteredRooms as any}
                 onRoomClick={(data: any) => setSelectedRoom(data as any)}
               />
             </div>
-            <div className="space-y-4">
+            <div className="2xl:col-span-1 min-w-0 space-y-4">
               <ArrivalsDepartures rooms={rooms as any} reservations={reservations as any} guests={guests as any} />
             </div>
           </div>

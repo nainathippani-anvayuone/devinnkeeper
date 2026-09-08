@@ -10,6 +10,7 @@ import Guests from "@/pages/Guests";
 import Housekeeping from "@/pages/Housekeeping";
 import Maintenance from "@/pages/Maintenance";
 import CheckInVerification from "@/pages/CheckInVerification";
+import DigitalKeyPage from "@/pages/DigitalKeyPage";
 import { Redirect, Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
@@ -20,6 +21,9 @@ import LoginPage from "./pages/auth/LoginPage";
 import SignupPage from "./pages/auth/SignupPage";
 import ForgotPasswordPage from "./pages/auth/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/auth/ResetPasswordPage";
+
+import { NotificationProvider } from "./contexts/NotificationContext";
+import { NotificationsPage } from "./pages/Notifications";
 
 function ProtectedApp() {
   const { isAuthenticated, loading } = useAuthContext();
@@ -49,9 +53,11 @@ function ProtectedApp() {
         <Route path={"/shift-audits"} component={ShiftAudits} />
         <Route path={"/reservations"} component={Reservations} />
         <Route path={"/checkin"} component={CheckInVerification} />
+        <Route path={"/digital-key"} component={DigitalKeyPage} />
         <Route path={"/guests"} component={Guests} />
         <Route path={"/housekeeping"} component={Housekeeping} />
         <Route path={"/maintenance"} component={Maintenance} />
+        <Route path={"/notifications"} component={NotificationsPage} />
         <Route path={"/404"} component={NotFound} />
         <Route component={NotFound} />
       </Switch>
@@ -74,9 +80,11 @@ function PublicRoutes() {
       <Route path="/shift-audits" component={ProtectedApp} />
       <Route path="/reservations" component={ProtectedApp} />
       <Route path="/checkin" component={ProtectedApp} />
+      <Route path="/digital-key" component={ProtectedApp} />
       <Route path="/guests" component={ProtectedApp} />
       <Route path="/housekeeping" component={ProtectedApp} />
       <Route path="/maintenance" component={ProtectedApp} />
+      <Route path="/notifications" component={ProtectedApp} />
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>
@@ -90,7 +98,9 @@ function App() {
         <TooltipProvider>
           <Toaster richColors closeButton />
           <AuthProvider>
-            <PublicRoutes />
+            <NotificationProvider>
+              <PublicRoutes />
+            </NotificationProvider>
           </AuthProvider>
         </TooltipProvider>
       </ThemeProvider>

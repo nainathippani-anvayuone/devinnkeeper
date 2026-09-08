@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useAuthContext } from "@/contexts/AuthContext";
+import { NotificationBell } from "./NotificationBell";
 import {
   LayoutDashboard,
   LogOut,
@@ -249,6 +250,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
 
           <div className="flex items-center gap-2.5 sm:gap-3">
+            {/* Real-time Notification Bell */}
+            <NotificationBell />
+
             {/* Quick Language Selector Pill */}
             <div className="flex items-center gap-1.5 rounded-2xl border border-border bg-card/80 px-2.5 py-1.5 shadow-2xs">
               <Globe className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />

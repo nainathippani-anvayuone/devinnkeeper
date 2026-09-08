@@ -68,7 +68,11 @@ import {
   listNotifications,
   createNotification,
   markRead,
-  clearNotifications
+  clearNotifications,
+  getUnreadNotificationCount,
+  markOneRead,
+  markAllRead,
+  deleteOneNotification,
 } from '../controllers/notificationController.js';
 import { getAnalytics } from '../controllers/analyticsController.js';
 import { getDashboard } from '../controllers/dashboardController.js';
@@ -172,7 +176,12 @@ router.put('/maintenance/:id', authenticateToken, updateMaintenance);
 
 // ─── Notifications ─────────────────────────────────────────
 router.get('/notifications', authenticateToken, listNotifications);
+router.get('/notifications/unread-count', authenticateToken, getUnreadNotificationCount);
 router.post('/notifications', authenticateToken, createNotification);
+router.patch('/notifications/read-all', authenticateToken, markAllRead);
+router.patch('/notifications/:id/read', authenticateToken, markOneRead);
+router.delete('/notifications/:id', authenticateToken, deleteOneNotification);
+// Legacy compat routes
 router.post('/notifications/mark-read', authenticateToken, markRead);
 router.put('/notifications', authenticateToken, markRead);
 router.delete('/notifications', authenticateToken, clearNotifications);

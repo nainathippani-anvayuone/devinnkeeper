@@ -1,5 +1,7 @@
 import { PrismaClient } from '@prisma/client';
+import { createNotification, NotificationType, NotificationPriority } from '../utils/notificationService.js';
 const prisma = new PrismaClient();
+
 
 function paginate(data, page, limit) {
   const total = data.length;
@@ -83,6 +85,22 @@ export async function createPayment(req, res) {
       }
     });
     res.status(201).json(payment);
+
+    try {
+      const isFailed = payment.paymentStatus?.toLowerCase() === 'failed';
+      await createNotification({
+        type: isFailed ? NotificationType.PAYMENT_FAILED : NotificationType.PAYMENT_SUCCESS,
+        title: isFailed ? `Payment Failed: $${payment.amount}` : `Payment Received: $${payment.amount}`,
+        message: `Payment of $${payment.amount} (${payment.method}) status: ${payment.paymentStatus}`,
+        targetRoles: ['FRONT_DESK', 'MANAGER', 'ADMIN', 'ACCOUNTANT'],
+        priority: isFailed ? NotificationPriority.HIGH : NotificationPriority.NORMAL,
+        reservationId: payment.reservationId || null,
+        metadata: { amount: payment.amount, method: payment.method, status: payment.paymentStatus }
+      });
+    } catch (e) {
+      console.error('Payment notification error:', e);
+    }
+
   } catch (err) {
     res.status(500).json({ error: 'An internal error occurred while processing your request.' });
   }

@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import { createNotification, NotificationType, NotificationPriority } from '../utils/notificationService.js';
 const prisma = new PrismaClient();
 
 function paginate(data, page, limit) {
@@ -46,6 +47,22 @@ export async function createHousekeeping(req, res) {
       notes: req.body.notes || null
     }});
     res.status(201).json(item);
+
+    // Fire HOUSEKEEPING_TASK_CREATED notification
+    try {
+      const room = item.roomId ? await prisma.room.findUnique({ where: { id: item.roomId } }) : null;
+      const roomLabel = room ? `Room ${room.room_number}` : (item.roomId ? `Room ${item.roomId}` : '');
+      await createNotification({
+        type: NotificationType.HOUSEKEEPING_TASK_CREATED,
+        title: 'Housekeeping Task Created',
+        message: `New housekeeping task created${roomLabel ? ` for ${roomLabel}` : ''}${item.assignedTo ? ` – Assigned to ${item.assignedTo}` : ''}`,
+        priority: NotificationPriority.NORMAL,
+        roomId: item.roomId,
+        metadata: { roomId: item.roomId, roomNumber: room?.room_number, taskId: item.id },
+      });
+    } catch (notifErr) {
+      console.error('[housekeepingController] TASK_CREATED notification failed:', notifErr.message);
+    }
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -86,6 +103,46 @@ export async function updateHousekeeping(req, res) {
       }
     });
     res.json(item);
+
+    // Fire notification based on status
+    try {
+      const room = item.roomId ? await prisma.room.findUnique({ where: { id: item.roomId } }) : null;
+      const roomLabel = room ? `Room ${room.room_number}` : (item.roomId ? `Room ${item.roomId}` : '');
+      const newStatus = (req.body.status || '').toLowerCase();
+
+      if (newStatus === 'completed' || newStatus === 'done') {
+        await createNotification({
+          type: NotificationType.HOUSEKEEPING_TASK_COMPLETED,
+          title: 'Housekeeping Completed',
+          message: `Housekeeping task completed${roomLabel ? ` for ${roomLabel}` : ''}`,
+          priority: NotificationPriority.NORMAL,
+          roomId: item.roomId,
+          metadata: { roomId: item.roomId, roomNumber: room?.room_number, taskId: item.id },
+        });
+        // Also notify room is now clean
+        if (item.roomId) {
+          await createNotification({
+            type: NotificationType.ROOM_CLEAN,
+            title: 'Room Clean',
+            message: `${roomLabel} has been cleaned and is ready`,
+            priority: NotificationPriority.NORMAL,
+            roomId: item.roomId,
+            metadata: { roomId: item.roomId, roomNumber: room?.room_number },
+          });
+        }
+      } else if (newStatus === 'in-progress' || newStatus === 'in_progress') {
+        await createNotification({
+          type: NotificationType.HOUSEKEEPING_TASK_ASSIGNED,
+          title: 'Housekeeping Assigned',
+          message: `Housekeeping task assigned${roomLabel ? ` for ${roomLabel}` : ''}${item.assignedTo ? ` to ${item.assignedTo}` : ''}`,
+          priority: NotificationPriority.NORMAL,
+          roomId: item.roomId,
+          metadata: { roomId: item.roomId, roomNumber: room?.room_number, taskId: item.id },
+        });
+      }
+    } catch (notifErr) {
+      console.error('[housekeepingController] update notification failed:', notifErr.message);
+    }
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
