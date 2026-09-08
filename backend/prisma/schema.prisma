@@ -158,16 +158,104 @@ model Statistics {
 }
 
 model User {
-  id         Int      @id @default(autoincrement())
+  id         Int        @id @default(autoincrement())
   name       String
-  email      String   @unique
+  email      String     @unique
   phone      String?
   password   String
-  role       String   @default("receptionist")
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
+  role       String     @default("receptionist")
+  created_at DateTime   @default(now())
+  updated_at DateTime   @updatedAt
+  userRoles  UserRole[]
+  auditLogs  AuditLog[]
 
   @@index([role])
+}
+
+model Role {
+  id          Int              @id @default(autoincrement())
+  name        String           @unique
+  description String?
+  created_at  DateTime         @default(now())
+  permissions RolePermission[]
+  users       UserRole[]
+}
+
+model Permission {
+  id          Int              @id @default(autoincrement())
+  name        String           @unique
+  module      String
+  action      String
+  description String?
+  created_at  DateTime         @default(now())
+  roles       RolePermission[]
+}
+
+model RolePermission {
+  roleId       Int
+  permissionId Int
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+}
+
+model UserRole {
+  userId Int
+  roleId Int
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role   Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+}
+
+model AuditLog {
+  id        Int      @id @default(autoincrement())
+  userId    Int?
+  userEmail String?
+  userName  String?
+  action    String
+  module    String
+  details   String?
+  ipAddress String?
+  createdAt DateTime @default(now())
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([module])
+  @@index([action])
+  @@index([createdAt])
+}
+
+model Expense {
+  id         Int      @id @default(autoincrement())
+  title      String
+  amount     Float
+  category   String
+  status     String   @default("pending")
+  approvedBy String?
+  date       DateTime @default(now())
+  notes      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([status])
+}
+
+model ApprovalRequest {
+  id            Int       @id @default(autoincrement())
+  type          String
+  referenceId   String?
+  requestedBy   String
+  requestedById Int?
+  status        String    @default("pending")
+  reason        String?
+  reviewedBy    String?
+  reviewedAt    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([type])
+  @@index([status])
 }
 
 model Guest {

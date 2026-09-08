@@ -1,4 +1,6 @@
 import { prisma } from '../utils/db.js';
+import { broadcastRoomUpdate } from '../utils/realtime.js';
+import { recordAuditLog } from '../services/rbacService.js';
 
 function paginate(data, page, limit) {
   const total = data.length;
@@ -33,20 +35,31 @@ export async function listRoomsNew(req, res) {
 
     const pages = Math.ceil(total / take);
 
-    const normalized = rooms.map(r => ({
-      id: r.id,
-      number: r.room_number,
-      name: `Room ${r.room_number}`,
-      type: r.room_type?.name?.toLowerCase() || 'standard',
-      floor: r.floor,
-      status: r.status?.toLowerCase() || 'vacant',
-      rate: r.current_price,
-      capacity: r.room_type?.capacity || 2,
-      amenities: r.room_type?.description || null,
-      isAvailable: r.availability ? 1 : 0,
-      createdAt: r.last_updated,
-      updatedAt: r.last_updated,
-    }));
+    const normalized = rooms.map(r => {
+      const typeLower = (r.room_type?.name || '').toLowerCase();
+      let image = null;
+      if (typeLower.includes('deluxe')) image = '/rooms/deluxe.png';
+      else if (typeLower.includes('family')) image = '/rooms/family.png';
+      else if (typeLower.includes('premium')) image = '/rooms/premium.png';
+      else if (typeLower.includes('standard')) image = '/rooms/standard.png';
+      else if (typeLower.includes('suite')) image = '/rooms/suite.png';
+
+      return {
+        id: r.id,
+        number: r.room_number,
+        name: `Room ${r.room_number}`,
+        type: typeLower || 'standard',
+        floor: r.floor,
+        status: r.status?.toLowerCase() || 'vacant',
+        rate: r.current_price,
+        capacity: r.room_type?.capacity || (typeLower.includes('family') ? 4 : 2),
+        amenities: r.room_type?.description || null,
+        image,
+        isAvailable: r.availability ? 1 : 0,
+        createdAt: r.last_updated,
+        updatedAt: r.last_updated,
+      };
+    });
     
     res.json({ items: normalized, total, page: Number(page), limit: take, pages });
   } catch (err) {
@@ -62,7 +75,20 @@ export async function getRoomNew(req, res) {
       include: { room_type: true }
     });
     if (!room) return res.status(404).json({ error: 'Room not found' });
-    res.json({ ...room, number: room.room_number, type: room.room_type?.name?.toLowerCase() });
+    const typeLower = (room.room_type?.name || '').toLowerCase();
+    let image = null;
+    if (typeLower.includes('deluxe')) image = '/rooms/deluxe.png';
+    else if (typeLower.includes('family')) image = '/rooms/family.png';
+    else if (typeLower.includes('premium')) image = '/rooms/premium.png';
+    else if (typeLower.includes('standard')) image = '/rooms/standard.png';
+    else if (typeLower.includes('suite')) image = '/rooms/suite.png';
+
+    res.json({
+      ...room,
+      number: room.room_number,
+      type: typeLower,
+      image,
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -88,6 +114,18 @@ export async function createRoomNew(req, res) {
     const room = await prisma.room.create({
       data: { room_number: String(number).trim(), room_type_id: roomType.id, floor: floor || 1, status: status || 'Vacant', current_price: rate || roomType.base_price, availability: true }
     });
+    broadcastRoomUpdate({ roomId: room.id, roomNumber: room.room_number, floor: room.floor, status: room.status, availability: room.availability, action: 'created' });
+
+    await recordAuditLog({
+      userId: req.user?.id,
+      userEmail: req.user?.email,
+      userName: req.user?.name,
+      action: 'CREATE',
+      module: 'rooms',
+      details: `Created room #${room.room_number} (Floor ${room.floor}, Type: ${roomType.name}, Rate: ${room.current_price})`,
+      ipAddress: req.ip,
+    });
+
     res.status(201).json(room);
   } catch (err) {
     if (err.code === 'P2002') {
@@ -145,6 +183,7 @@ export async function updateRoomNew(req, res) {
       }
     }
 
+    broadcastRoomUpdate({ roomId: room.id, roomNumber: room.room_number, floor: room.floor, status: room.status, availability: room.availability, currentPrice: room.current_price, action: 'updated' });
     res.json(room);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -165,8 +204,25 @@ export async function deleteRoomNew(req, res) {
       return res.status(400).json({ error: `Cannot delete room #${roomId}: ${activeBookings.length} active reservation(s) exist. Please relocate or check out guests first.` });
     }
 
+    const roomToDelete = await prisma.room.findUnique({ where: { id: roomId } });
+    if (!roomToDelete) {
+      return res.status(404).json({ error: 'Room not found' });
+    }
+
     await prisma.room.delete({ where: { id: roomId } });
-    res.json({ success: true });
+    broadcastRoomUpdate({ roomId, action: 'deleted' });
+
+    await recordAuditLog({
+      userId: req.user?.id,
+      userEmail: req.user?.email,
+      userName: req.user?.name,
+      action: 'DELETE',
+      module: 'rooms',
+      details: `Deleted room #${roomToDelete.room_number} (ID: ${roomId})`,
+      ipAddress: req.ip,
+    });
+
+    res.json({ success: true, message: 'Room deleted successfully' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -185,6 +241,7 @@ export async function startCleaning(req, res) {
       },
     });
 
+    broadcastRoomUpdate({ roomId: room.id, roomNumber: room.room_number, status: room.status, action: 'cleaning_started' });
     res.json({
       success: true,
       data: {
@@ -214,6 +271,7 @@ export async function markRoomClean(req, res) {
       },
     });
 
+    broadcastRoomUpdate({ roomId: room.id, roomNumber: room.room_number, status: room.status, action: 'cleaned' });
     res.json({
       success: true,
       data: {
@@ -243,6 +301,7 @@ export async function markRoomDirty(req, res) {
       },
     });
 
+    broadcastRoomUpdate({ roomId: room.id, roomNumber: room.room_number, status: room.status, action: 'dirty' });
     res.json({
       success: true,
       data: {
@@ -271,6 +330,7 @@ export async function markRoomInspected(req, res) {
       },
     });
 
+    broadcastRoomUpdate({ roomId: room.id, roomNumber: room.room_number, status: room.status, action: 'inspected' });
     res.json({
       success: true,
       data: {

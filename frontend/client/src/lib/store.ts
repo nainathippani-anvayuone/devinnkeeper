@@ -14,6 +14,8 @@ export interface Room {
   rate: number;
   capacity: number;
   amenities: string | null;
+  image?: string | null;
+  bookImmediately?: boolean;
   isAvailable: number;
   createdAt: Date;
   updatedAt: Date;

@@ -173,38 +173,38 @@ export default function ArrivalsDepartures({ rooms, reservations, guests }: Arri
               const guest = getGuest(res.guestId);
               const room = getRoom(res.roomId);
               return (
-                <motion.div
-                  key={res.id}
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: i * 0.05 }}
-                  className="flex items-center justify-between rounded-2xl border border-slate-200/70 bg-white/80 p-3 transition-colors hover:bg-slate-50/80"
-                  onClick={() => handleRowClick(res)}
-                >
-                  <div className="flex-1 min-w-0">
-                    <p className="truncate text-sm font-semibold text-slate-900">
-                      {guest ? `${guest.firstName} ${guest.lastName}` : "Guest"}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {t("roomDrawer.roomNumber", { number: room?.number || "TBD" })}
-                    </p>
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="text-xs"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleGoToCheckIn();
-                    }}
+                  <motion.div
+                    key={res.id}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: i * 0.05 }}
+                    className="flex flex-col min-[420px]:flex-row min-[1536px]:flex-col min-[1800px]:flex-row sm:items-center justify-between gap-2.5 rounded-2xl border border-border/80 bg-card/90 p-3 transition-colors hover:bg-accent/40 shadow-2xs"
+                    onClick={() => handleRowClick(res)}
                   >
-                    <UserPlus className="h-3 w-3 mr-1" />
-                    {t("checkin.title", "Check In")}
-                  </Button>
-                </motion.div>
-              );
-            })
-          )}
+                    <div className="flex-1 min-w-0">
+                      <p className="truncate text-sm font-semibold text-foreground">
+                        {guest ? `${guest.firstName} ${guest.lastName}` : "Guest"}
+                      </p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {t("roomDrawer.roomNumber", { number: room?.number || "TBD" })}
+                      </p>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-xs shrink-0 self-start min-[420px]:self-auto min-[1536px]:self-start min-[1800px]:self-auto cursor-pointer"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleGoToCheckIn();
+                      }}
+                    >
+                      <UserPlus className="h-3 w-3 mr-1" />
+                      {t("checkin.title", "Check In")}
+                    </Button>
+                  </motion.div>
+                );
+              })
+            )}
         </CardContent>
       </Card>
 
@@ -224,7 +224,7 @@ export default function ArrivalsDepartures({ rooms, reservations, guests }: Arri
         </CardHeader>
         <CardContent className="space-y-2">
           {todayDepartures.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/70 py-6 text-center text-sm text-muted-foreground">
+            <div className="rounded-2xl border border-dashed border-border bg-muted/30 py-6 text-center text-sm text-muted-foreground">
               {t("dashboard.noDeparturesToday")}
             </div>
           ) : (
@@ -232,43 +232,43 @@ export default function ArrivalsDepartures({ rooms, reservations, guests }: Arri
               const guest = getGuest(res.guestId);
               const room = getRoom(res.roomId);
               return (
-                <motion.div
-                  key={res.id}
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: i * 0.05 }}
-                  className="flex items-center justify-between rounded-2xl border border-slate-200/70 bg-white/80 p-3 transition-colors hover:bg-slate-50/80"
-                  onClick={() => handleRowClick(res)}
-                >
-                  <div className="flex-1 min-w-0">
-                    <p className="truncate text-sm font-semibold text-slate-900">
-                      {guest ? `${guest.firstName} ${guest.lastName}` : "Guest"}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {t("roomDrawer.roomNumber", { number: room?.number || "TBD" })} · {t("reservations.checkedOut")}
-                    </p>
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="text-xs"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleCheckOut(res);
-                    }}
-                    disabled={checkOutMutation.isPending}
+                  <motion.div
+                    key={res.id}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: i * 0.05 }}
+                    className="flex flex-col min-[420px]:flex-row min-[1536px]:flex-col min-[1800px]:flex-row sm:items-center justify-between gap-2.5 rounded-2xl border border-border/80 bg-card/90 p-3 transition-colors hover:bg-accent/40 shadow-2xs"
+                    onClick={() => handleRowClick(res)}
                   >
-                    {checkOutMutation.isPending ? (
-                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                    ) : (
-                      <LogOut className="h-3 w-3 mr-1" />
-                    )}
-                    {t("reservations.checkedOut")}
-                  </Button>
-                </motion.div>
-              );
-            })
-          )}
+                    <div className="flex-1 min-w-0">
+                      <p className="truncate text-sm font-semibold text-foreground">
+                        {guest ? `${guest.firstName} ${guest.lastName}` : "Guest"}
+                      </p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {t("roomDrawer.roomNumber", { number: room?.number || "TBD" })} · {t("reservations.checkedOut")}
+                      </p>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-xs shrink-0 self-start min-[420px]:self-auto min-[1536px]:self-start min-[1800px]:self-auto cursor-pointer"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleCheckOut(res);
+                      }}
+                      disabled={checkOutMutation.isPending}
+                    >
+                      {checkOutMutation.isPending ? (
+                        <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                      ) : (
+                        <LogOut className="h-3 w-3 mr-1" />
+                      )}
+                      {t("reservations.checkedOut")}
+                    </Button>
+                  </motion.div>
+                );
+              })
+            )}
         </CardContent>
       </Card>
     </div>

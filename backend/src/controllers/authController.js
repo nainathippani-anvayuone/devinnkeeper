@@ -3,6 +3,8 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { sendPasswordResetEmail } from '../utils/emailNotifier.js';
+import { getUserPermissions, recordAuditLog, normalizeRoleName } from '../services/rbacService.js';
+
 const JWT_SECRET = process.env.JWT_SECRET || 'innkeeper-super-secret-key-change-in-production';
 const JWT_EXPIRES_IN = '7d';
 
@@ -16,14 +18,20 @@ const COOKIE_OPTS = {
 
 const resetTokens = new Map();
 
-function normalizeUser(user) {
+export function normalizeRole(role) {
+  return normalizeRoleName(role).toLowerCase();
+}
+
+async function normalizeUser(user) {
   if (!user) return null;
+  const permissions = await getUserPermissions(user);
 
   return {
     id: String(user.id),
     name: user.name,
     email: user.email,
-    role: user.role,
+    role: normalizeRole(user.role),
+    permissions,
     createdAt: user.created_at ?? user.createdAt,
     updatedAt: user.updated_at ?? user.updatedAt,
   };
@@ -31,7 +39,7 @@ function normalizeUser(user) {
 
 function generateToken(user) {
   return jwt.sign(
-    { id: user.id, email: user.email, role: user.role },
+    { id: user.id, email: user.email, role: normalizeRole(user.role) },
     JWT_SECRET,
     { expiresIn: JWT_EXPIRES_IN }
   );
@@ -60,6 +68,7 @@ export async function signup(req, res) {
     }
 
     const hashed = await bcrypt.hash(password, 12);
+    const assignedRole = normalizeRole(role || 'receptionist');
 
     const user = await prisma.user.create({
       data: {
@@ -67,24 +76,26 @@ export async function signup(req, res) {
         email,
         phone: phone || null,
         password: hashed,
-        role: role || 'receptionist',
+        role: assignedRole,
       },
     });
+
+    // Link user role
+    const roleRecord = await prisma.role.findUnique({ where: { name: normalizeRoleName(assignedRole) } });
+    if (roleRecord) {
+      await prisma.userRole.create({
+        data: { userId: user.id, roleId: roleRecord.id },
+      }).catch(() => {});
+    }
 
     const token = generateToken(user);
     res.cookie(COOKIE_NAME, token, COOKIE_OPTS);
 
+    const normalized = await normalizeUser(user);
     return res.status(201).json({
       message: 'Account created successfully.',
       token,
-      user: {
-        id: String(user.id),
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        createdAt: user.created_at,
-        updatedAt: user.updated_at,
-      },
+      user: normalized,
     });
   } catch (err) {
     console.error('Signup error:', err);
@@ -114,10 +125,22 @@ export async function login(req, res) {
     const token = generateToken(user);
     res.cookie(COOKIE_NAME, token, COOKIE_OPTS);
 
+    const normalized = await normalizeUser(user);
+
+    await recordAuditLog({
+      userId: user.id,
+      userEmail: user.email,
+      userName: user.name,
+      action: 'LOGIN',
+      module: 'auth',
+      details: `User logged in with role ${normalized.role}`,
+      ipAddress: req.ip,
+    });
+
     return res.status(200).json({
       message: 'Login successful.',
       token,
-      user: normalizeUser(user),
+      user: normalized,
     });
   } catch (err) {
     console.error('Login error:', err);
@@ -129,7 +152,6 @@ export async function login(req, res) {
 
 export async function me(req, res) {
   try {
-    // Accept token from Authorization header OR cookie
     const authHeader = req.headers.authorization;
     let token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
     if (!token && req.cookies?.[COOKIE_NAME]) {
@@ -146,15 +168,9 @@ export async function me(req, res) {
       return res.status(401).json({ error: 'User not found.' });
     }
 
+    const normalized = await normalizeUser(user);
     return res.status(200).json({
-      user: {
-        id: String(user.id),
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        createdAt: user.created_at,
-        updatedAt: user.updated_at,
-      },
+      user: normalized,
     });
   } catch (err) {
     return res.status(401).json({ error: 'Invalid or expired token.' });
@@ -180,7 +196,6 @@ export async function forgotPassword(req, res) {
     const resetToken = crypto.randomBytes(32).toString('hex');
     resetTokens.set(resetToken, { userId: user.id, email: user.email, expiresAt: Date.now() + 3600_000 });
 
-    // Send real email via Nodemailer/SMTP to recipient email address
     const emailResult = await sendPasswordResetEmail({ toEmail: user.email, resetToken });
 
     if (!emailResult.success) {
@@ -229,5 +244,217 @@ export async function resetPassword(req, res) {
   } catch (err) {
     console.error('Reset password error:', err);
     return res.status(500).json({ error: 'Internal server error.' });
+  }
+}
+
+// ─── Staff / User Management (Admin & Manager) ──────────────
+
+export async function listStaff(req, res) {
+  try {
+    const users = await prisma.user.findMany({
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        role: true,
+        created_at: true,
+        updated_at: true,
+      },
+      orderBy: { id: 'asc' },
+    });
+
+    const sanitized = users.map((u) => ({
+      id: u.id,
+      name: u.name,
+      email: u.email,
+      phone: u.phone,
+      role: normalizeRole(u.role),
+      createdAt: u.created_at,
+      updatedAt: u.updated_at,
+    }));
+
+    return res.json(sanitized);
+  } catch (err) {
+    console.error('listStaff error:', err);
+    return res.status(500).json({ error: 'Failed to retrieve staff list.' });
+  }
+}
+
+export async function createStaff(req, res) {
+  try {
+    const { name, email, phone, password, role } = req.body;
+    if (!name || !email || !password) {
+      return res.status(400).json({ error: 'Name, email, and password are required.' });
+    }
+
+    const normalizedEmail = String(email).trim().toLowerCase();
+    const existing = await prisma.user.findUnique({ where: { email: normalizedEmail } });
+    if (existing) {
+      return res.status(409).json({ error: 'A staff member with this email already exists.' });
+    }
+
+    const assignedRole = normalizeRole(role || 'receptionist');
+
+    // Security check: only ADMIN can create ADMIN accounts
+    const callerRole = normalizeRoleName(req.user?.role);
+    if (normalizeRoleName(assignedRole) === 'ADMIN' && callerRole !== 'ADMIN') {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have permission to perform this action',
+      });
+    }
+
+    const hashed = await bcrypt.hash(password, 12);
+
+    const newUser = await prisma.user.create({
+      data: {
+        name: String(name).trim(),
+        email: normalizedEmail,
+        phone: phone || null,
+        password: hashed,
+        role: assignedRole,
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        role: true,
+        created_at: true,
+      },
+    });
+
+    // Link user role
+    const roleRecord = await prisma.role.findUnique({ where: { name: normalizeRoleName(assignedRole) } });
+    if (roleRecord) {
+      await prisma.userRole.create({
+        data: { userId: newUser.id, roleId: roleRecord.id },
+      }).catch(() => {});
+    }
+
+    await recordAuditLog({
+      userId: req.user?.id,
+      userEmail: req.user?.email,
+      userName: req.user?.name,
+      action: 'CREATE',
+      module: 'users',
+      details: `Created new user ${newUser.email} with role ${assignedRole}`,
+      ipAddress: req.ip,
+    });
+
+    return res.status(201).json({
+      ...newUser,
+      role: normalizeRole(newUser.role),
+    });
+  } catch (err) {
+    console.error('createStaff error:', err);
+    return res.status(500).json({ error: 'Failed to create staff member.' });
+  }
+}
+
+export async function updateStaff(req, res) {
+  try {
+    const staffId = Number(req.params.id);
+    const { name, email, phone, role, password } = req.body;
+
+    // Security requirement: Never allow users to modify their own role
+    if (role && req.user && Number(req.user.id) === staffId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Security policy violation: Users cannot modify their own role',
+      });
+    }
+
+    const callerRole = normalizeRoleName(req.user?.role);
+    if (role) {
+      // Only ADMIN can change roles or assign ADMIN role
+      if (callerRole !== 'ADMIN') {
+        return res.status(403).json({
+          success: false,
+          message: 'You do not have permission to perform this action',
+        });
+      }
+    }
+
+    const dataToUpdate = {};
+    if (name) dataToUpdate.name = String(name).trim();
+    if (email) dataToUpdate.email = String(email).trim().toLowerCase();
+    if (phone !== undefined) dataToUpdate.phone = phone;
+    if (role) dataToUpdate.role = normalizeRole(role);
+    if (password) {
+      dataToUpdate.password = await bcrypt.hash(password, 12);
+    }
+
+    const updated = await prisma.user.update({
+      where: { id: staffId },
+      data: dataToUpdate,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        role: true,
+        created_at: true,
+        updated_at: true,
+      },
+    });
+
+    if (role) {
+      const roleRecord = await prisma.role.findUnique({ where: { name: normalizeRoleName(role) } });
+      if (roleRecord) {
+        await prisma.userRole.deleteMany({ where: { userId: staffId } });
+        await prisma.userRole.create({ data: { userId: staffId, roleId: roleRecord.id } });
+      }
+    }
+
+    await recordAuditLog({
+      userId: req.user?.id,
+      userEmail: req.user?.email,
+      userName: req.user?.name,
+      action: 'EDIT',
+      module: 'users',
+      details: `Updated user profile/role for ${updated.email} (ID: ${updated.id})`,
+      ipAddress: req.ip,
+    });
+
+    return res.json({
+      ...updated,
+      role: normalizeRole(updated.role),
+    });
+  } catch (err) {
+    console.error('updateStaff error:', err);
+    return res.status(500).json({ error: 'Failed to update staff member.' });
+  }
+}
+
+export async function deleteStaff(req, res) {
+  try {
+    const staffId = Number(req.params.id);
+    if (req.user && Number(req.user.id) === staffId) {
+      return res.status(400).json({ error: 'Cannot delete your own account.' });
+    }
+
+    const targetUser = await prisma.user.findUnique({ where: { id: staffId } });
+    if (!targetUser) {
+      return res.status(404).json({ error: 'Staff member not found.' });
+    }
+
+    await prisma.user.delete({ where: { id: staffId } });
+
+    await recordAuditLog({
+      userId: req.user?.id,
+      userEmail: req.user?.email,
+      userName: req.user?.name,
+      action: 'DELETE',
+      module: 'users',
+      details: `Deleted user ${targetUser.email} (ID: ${staffId})`,
+      ipAddress: req.ip,
+    });
+
+    return res.json({ success: true, message: 'Staff member deleted.' });
+  } catch (err) {
+    console.error('deleteStaff error:', err);
+    return res.status(500).json({ error: 'Failed to delete staff member.' });
   }
 }

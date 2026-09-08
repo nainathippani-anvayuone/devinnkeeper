@@ -12,7 +12,7 @@ import { useAuthContext } from '@/contexts/AuthContext';
 
 export default function LoginPage() {
   const [, setLocation] = useLocation();
-  const { login, loading, isAuthenticated, user, logout } = useAuthContext();
+  const { login, loading, isAuthenticated, user, logout, setDemoRole } = useAuthContext();
   const [showPassword, setShowPassword] = useState(false);
   const [role, setRole] = useState('');
   const [email, setEmail] = useState('');
@@ -44,14 +44,15 @@ export default function LoginPage() {
     return Object.keys(nextErrors).length === 0;
   };
 
-
-
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
     if (!validate()) return;
     try {
       await login({ email, password, rememberMe });
-      toast.success('Welcome back! Redirecting to your dashboard.');
+      if (role) {
+        setDemoRole(role as any);
+      }
+      toast.success('Welcome back! Redirecting to your workspace.');
       setLocation('/');
     } catch (err: any) {
       toast.error(err?.response?.data?.error || err?.message || 'Invalid email address or password.');
@@ -101,12 +102,12 @@ export default function LoginPage() {
                     }}
                   >
                     <SelectTrigger id="role" className="rounded-2xl border-stone-200 bg-white">
-                      <SelectValue placeholder="Choose a Role (Admin, Manager, Staff)" />
+                      <SelectValue placeholder="Choose User Role" />
                     </SelectTrigger>
                     <SelectContent className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl rounded-2xl z-[9999]">
-                      <SelectItem value="admin" className="cursor-pointer font-medium">Admin</SelectItem>
-                      <SelectItem value="manager" className="cursor-pointer font-medium">Manager</SelectItem>
-                      <SelectItem value="receptionist" className="cursor-pointer font-medium">Receptionist / Staff</SelectItem>
+                      <SelectItem value="admin" className="cursor-pointer font-medium">Admin (Hotel Configuration & Structure)</SelectItem>
+                      <SelectItem value="manager" className="cursor-pointer font-medium">Manager (Hotel Operations)</SelectItem>
+                      <SelectItem value="receptionist" className="cursor-pointer font-medium">Receptionist (Front Desk)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

@@ -46,6 +46,7 @@ export const apiClient = {
     list: (params?: any) => api.get("/reservations", { params }),
     create: (data: any) => api.post("/reservations", data),
     update: (id: string, data: any) => api.put(`/reservations/${id}`, data),
+    cancel: (id: string | number, data?: any) => api.post(`/reservations/${id}/cancel`, data),
     remove: (id: string) => api.delete(`/reservations/${id}`),
   },
   guests: {
@@ -106,5 +107,42 @@ export const apiClient = {
   },
   roomAvailability: {
     list: (params?: any) => api.get("/room-availability", { params }),
+  },
+  hotel: {
+    get: () => api.get("/hotel"),
+    update: (data: any) => api.put("/hotel", data),
+  },
+  roomTypes: {
+    list: () => api.get("/room-types"),
+    create: (data: any) => api.post("/room-types", data),
+    update: (id: string | number, data: any) => api.put(`/room-types/${id}`, data),
+    remove: (id: string | number) => api.delete(`/room-types/${id}`),
+  },
+  staff: {
+    list: () => api.get("/staff"),
+    create: (data: any) => api.post("/staff", data),
+    update: (id: string | number, data: any) => api.put(`/staff/${id}`, data),
+    remove: (id: string | number) => api.delete(`/staff/${id}`),
+  },
+  auditLogs: {
+    list: (params?: any) => api.get("/audit-logs", { params }),
+  },
+  expenses: {
+    list: () => api.get("/expenses"),
+    create: (data: any) => api.post("/expenses", data),
+    update: (id: string | number, data: any) => api.put(`/expenses/${id}`, data),
+    remove: (id: string | number) => api.delete(`/expenses/${id}`),
+    approve: (id: string | number, data: { status: 'approved' | 'rejected' }) => api.put(`/expenses/${id}/approve`, data),
+  },
+  approvals: {
+    list: (params?: any) => api.get("/approvals", { params }),
+    create: (data: any) => api.post("/approvals", data),
+    review: (id: string | number, data: { status: 'approved' | 'rejected'; reviewNotes?: string }) => api.put(`/approvals/${id}/review`, data),
+  },
+  roles: {
+    list: () => api.get("/roles"),
+    permissions: () => api.get("/permissions"),
+    updatePermissions: (id: string | number, permissions: string[]) => api.put(`/roles/${id}/permissions`, { permissions }),
+    assignUserRole: (userId: string | number, role: string) => api.post(`/users/${userId}/role`, { role }),
   },
 };
