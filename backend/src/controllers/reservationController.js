@@ -1,6 +1,6 @@
 import { prisma } from '../utils/db.js';
 import { sendCheckInEmail } from '../utils/emailNotifier.js';
-import { broadcastRoomUpdate } from '../utils/realtime.js';
+import { broadcastRoomUpdate, broadcastApprovalUpdate } from '../utils/realtime.js';
 import { recordAuditLog, getUserPermissions, hasPermission } from '../services/rbacService.js';
 
 function paginate(data, page, limit) {
@@ -282,6 +282,15 @@ export async function updateReservation(req, res) {
       }
     }
 
+    if (updateData.status === 'cancelled') {
+      const userPermissions = req.userPermissions || await getUserPermissions(req.user);
+      if (!hasPermission(userPermissions, 'reservations.cancel')) {
+        return res.status(403).json({
+          error: 'Managers and Receptionists cannot cancel rooms directly. Please submit a cancellation request to the Admin.'
+        });
+      }
+    }
+
     if (checkIn !== undefined) {
       const parsed = new Date(checkIn);
       if (isNaN(parsed.getTime())) {
@@ -435,16 +444,19 @@ export async function cancelReservation(req, res) {
 
     const userPermissions = req.userPermissions || await getUserPermissions(req.user);
 
-    // If user does NOT have direct cancel permission, check for request permission (Receptionist)
+    // If user does NOT have direct cancel permission, check for request permission (Manager or Receptionist)
     if (!hasPermission(userPermissions, 'reservations.cancel')) {
       if (hasPermission(userPermissions, 'reservations.cancel_request')) {
+        const requesterRole = (req.user?.role || '').toUpperCase() === 'MANAGER' ? 'Manager' : 'Receptionist';
+        const requesterTitle = req.user?.name ? `${req.user.name} (${requesterRole})` : (req.user?.email || requesterRole);
+
         const approval = await prisma.approvalRequest.create({
           data: {
             type: 'cancellation',
             referenceId: String(reservationId),
-            requestedBy: req.user?.name || req.user?.email || 'Receptionist',
+            requestedBy: requesterTitle,
             requestedById: req.user?.id || null,
-            reason: reason || 'Cancellation requested by front desk',
+            reason: reason || `Cancellation requested by ${requesterRole}`,
             status: 'pending',
           },
         });
@@ -454,20 +466,37 @@ export async function cancelReservation(req, res) {
           data: { status: 'cancellation_requested' },
         });
 
+        await prisma.appNotification.create({
+          data: {
+            type: 'cancellation',
+            title: 'Reservation Cancellation Request',
+            message: `${requesterTitle} submitted a cancellation request for Reservation #${reservationId}. Reason: ${reason || 'Not specified'}`,
+            isRead: false,
+          },
+        }).catch(() => {});
+
+        broadcastApprovalUpdate({
+          type: 'cancellation',
+          referenceId: String(reservationId),
+          status: 'pending',
+          requestedBy: requesterTitle,
+          reason: reason || 'Not specified',
+        });
+
         await recordAuditLog({
           userId: req.user?.id,
           userEmail: req.user?.email,
           userName: req.user?.name,
           action: 'CANCEL',
           module: 'reservations',
-          details: `Requested cancellation for reservation #${reservationId} - Pending Manager Approval`,
+          details: `Requested cancellation for reservation #${reservationId} by ${requesterRole} - Sent to Admin for Approval. Reason: ${reason || 'Not specified'}`,
           ipAddress: req.ip,
         });
 
         return res.status(200).json({
           success: true,
           requiresApproval: true,
-          message: 'Cancellation requires Manager approval.',
+          message: 'Cancellation request submitted to Admin for approval.',
           data: approval,
         });
       } else {
@@ -548,3 +577,76 @@ export async function deleteReservation(req, res) {
     res.status(500).json({ error: 'An internal error occurred while processing your request.' });
   }
 }
+
+export async function requestReservationCancellation(req, res) {
+  try {
+    const reservationId = Number(req.params.id);
+    const { reason } = req.body || {};
+
+    const reservation = await prisma.reservation.findUnique({
+      where: { id: reservationId },
+      include: { guest: true, room: true },
+    });
+
+    if (!reservation) {
+      return res.status(404).json({ success: false, message: 'Reservation not found' });
+    }
+
+    const requesterRole = (req.user?.role || '').toUpperCase() === 'MANAGER' ? 'Manager' : 'Receptionist';
+    const requesterName = req.user?.name ? `${req.user.name} (${requesterRole})` : (req.user?.email || requesterRole);
+
+    const approval = await prisma.approvalRequest.create({
+      data: {
+        type: 'cancellation',
+        referenceId: String(reservationId),
+        requestedBy: requesterName,
+        requestedById: req.user?.id || null,
+        reason: reason || `Cancellation requested by ${requesterRole}`,
+        status: 'pending',
+      },
+    });
+
+    await prisma.reservation.update({
+      where: { id: reservationId },
+      data: { status: 'cancellation_requested' },
+    });
+
+    await prisma.appNotification.create({
+      data: {
+        type: 'cancellation',
+        title: 'Reservation Cancellation Request',
+        message: `${requesterName} submitted a cancellation request for Reservation #${reservationId}. Reason: ${reason || 'Not specified'}`,
+        isRead: false,
+      },
+    }).catch(() => {});
+
+    broadcastApprovalUpdate({
+      type: 'cancellation',
+      referenceId: String(reservationId),
+      status: 'pending',
+      requestedBy: requesterName,
+      reason: reason || 'Not specified',
+    });
+
+    await recordAuditLog({
+      userId: req.user?.id,
+      userEmail: req.user?.email,
+      userName: req.user?.name,
+      action: 'CANCEL',
+      module: 'reservations',
+      details: `Submitted cancellation request for Reservation #${reservationId} to Admin. Reason: ${reason || 'Not specified'}`,
+      ipAddress: req.ip,
+    });
+
+    return res.status(200).json({
+      success: true,
+      requiresApproval: true,
+      message: 'Cancellation request submitted to Admin for approval.',
+      data: approval,
+    });
+  } catch (err) {
+    console.error('requestReservationCancellation error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to submit cancellation request' });
+  }
+}
+

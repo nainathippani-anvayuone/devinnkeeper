@@ -76,6 +76,7 @@ import {
   createReservation,
   updateReservation,
   cancelReservation,
+  requestReservationCancellation,
   deleteReservation
 } from '../controllers/reservationController.js';
 import { listPayments, getPayment, createPayment, updatePayment, deletePayment } from '../controllers/paymentController.js';
@@ -157,7 +158,7 @@ router.delete('/expenses/:id', authenticateToken, requirePermission('expenses.de
 router.put('/expenses/:id/approve', authenticateToken, requirePermission('expenses.approve'), approveExpense);
 
 // ─── Approval Requests Workflow ────────────────────────────
-router.get('/approvals', authenticateToken, requireAnyPermission('reservations.approve', 'expenses.approve'), listApprovalRequests);
+router.get('/approvals', authenticateToken, requireAnyPermission('reservations.approve', 'reservations.cancel_request', 'expenses.approve'), listApprovalRequests);
 router.post('/approvals', authenticateToken, requireAnyPermission('reservations.cancel_request', 'payments.create'), createApprovalRequest);
 router.put('/approvals/:id/review', authenticateToken, requireAnyPermission('reservations.approve', 'expenses.approve'), reviewApprovalRequest);
 
@@ -212,6 +213,7 @@ router.get('/reservations', authenticateToken, requirePermission('reservations.v
 router.post('/reservations', authenticateToken, requirePermission('reservations.create'), createReservation);
 router.put('/reservations/:id', authenticateToken, requirePermission('reservations.edit'), updateReservation);
 router.post('/reservations/:id/cancel', authenticateToken, requireAnyPermission('reservations.cancel', 'reservations.cancel_request'), cancelReservation);
+router.post('/reservations/:id/cancel-request', authenticateToken, requireAnyPermission('reservations.cancel', 'reservations.cancel_request'), requestReservationCancellation);
 router.delete('/reservations/:id', authenticateToken, requirePermission('reservations.delete'), deleteReservation);
 
 // ─── Payments ──────────────────────────────────────────────
@@ -272,7 +274,7 @@ router.patch('/module2/rooms/:id/availability', authenticateToken, requirePermis
 router.get('/module2/bookings', authenticateToken, requirePermission('reservations.view'), listBookings);
 router.post('/module2/bookings', authenticateToken, requirePermission('reservations.create'), createBooking);
 router.put('/module2/bookings/:id', authenticateToken, requirePermission('reservations.edit'), updateBooking);
-router.post('/module2/bookings/:id/cancel', authenticateToken, requireAnyPermission('reservations.cancel', 'reservations.cancel_request'), cancelBooking);
+router.post('/module2/bookings/:id/cancel', authenticateToken, requirePermission('reservations.cancel'), cancelBooking);
 router.delete('/module2/bookings/:id', authenticateToken, requirePermission('reservations.delete'), deleteBooking);
 router.get('/module2/channels', authenticateToken, requirePermission('settings.view'), listChannels);
 router.post('/module2/channels/:id/sync', authenticateToken, requirePermission('settings.manage'), syncChannel);

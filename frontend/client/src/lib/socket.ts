@@ -22,7 +22,7 @@ export function getSocket(): Socket {
       console.log("[Socket.IO] Connected to PMS real-time server with id:", socket?.id);
     });
 
-    socket.on("connect_error", (err) => {
+    socket.on("connect_error", (err: Error) => {
       console.warn("[Socket.IO] Connection warning (polling fallback active):", err.message);
     });
 

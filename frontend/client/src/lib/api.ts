@@ -47,6 +47,7 @@ export const apiClient = {
     create: (data: any) => api.post("/reservations", data),
     update: (id: string, data: any) => api.put(`/reservations/${id}`, data),
     cancel: (id: string | number, data?: any) => api.post(`/reservations/${id}/cancel`, data),
+    requestCancellation: (id: string | number, data?: any) => api.post(`/reservations/${id}/cancel-request`, data),
     remove: (id: string) => api.delete(`/reservations/${id}`),
   },
   guests: {

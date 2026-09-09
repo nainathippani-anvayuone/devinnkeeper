@@ -41,7 +41,7 @@ export interface Reservation {
   roomId: number | null;
   checkIn: Date;
   checkOut: Date;
-  status: "confirmed" | "checked_in" | "checked_out" | "cancelled" | "no_show";
+  status: "confirmed" | "checked_in" | "checked_out" | "cancelled" | "no_show" | "cancellation_requested" | string;
   totalCharges: number | null;
   paidAmount: number | null;
   notes: string | null;
@@ -52,10 +52,10 @@ export interface Reservation {
 
 export interface Notification {
   id: number;
-  type: "arrival" | "departure" | "maintenance" | "charge" | "system" | "ai_insight";
+  type: "arrival" | "departure" | "maintenance" | "charge" | "system" | "ai_insight" | "cancellation" | string;
   title: string;
   message: string;
-  isRead: number;
+  isRead: boolean | number;
   createdAt: Date;
 }
 

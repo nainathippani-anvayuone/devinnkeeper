@@ -176,7 +176,7 @@ export default function ReservationsPage() {
     try {
       const res = await apiClient.reservations.cancel(cancelingReservation.id, { reason: cancelReason });
       if (res.data?.requiresApproval) {
-        toast.info(res.data.message || "Cancellation requires Manager approval.");
+        toast.info(res.data.message || "Cancellation request submitted to Admin for approval.");
       } else {
         toast.success("Reservation cancelled successfully");
       }
@@ -440,7 +440,7 @@ if (emailVal.trim() && !emailRegex.test(emailVal.trim())) {
                             size="sm"
                             variant="ghost"
                             className="h-7 w-7 p-0 text-amber-600 hover:bg-amber-500/10"
-                            title={hasPermission('reservations.cancel') ? "Cancel Reservation" : "Request Cancellation (Requires Approval)"}
+                            title={hasPermission('reservations.cancel') ? "Cancel Reservation (Direct)" : "Request Cancellation (Requires Admin Approval)"}
                             onClick={() => {
                               setCancelingReservation(r);
                               setCancelReason("");
@@ -720,7 +720,7 @@ className="h-10 min-w-0 flex-1 border-0 rounded-l-none pl-3 shadow-none focus-vi
                 <Ban className="h-5 w-5 text-rose-600" />
                 {hasPermission('reservations.cancel')
                   ? 'Confirm Direct Cancellation'
-                  : 'Request Cancellation (Manager Approval Required)'}
+                  : 'Request Cancellation (Admin Approval Required)'}
               </DialogTitle>
             </DialogHeader>
 
@@ -729,8 +729,8 @@ className="h-10 min-w-0 flex-1 border-0 rounded-l-none pl-3 shadow-none focus-vi
                 <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-amber-800 dark:text-amber-300 text-xs flex items-start gap-2">
                   <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
                   <div>
-                    <p className="font-bold">Cancellation requires Manager approval.</p>
-                    <p className="mt-0.5">As Front Desk receptionist, this action will submit an approval request to the Manager on duty before the reservation is cancelled.</p>
+                    <p className="font-bold">Cancellation requires Admin approval.</p>
+                    <p className="mt-0.5">Managers and Receptionists cannot cancel rooms directly. This action will submit a cancellation request to the Administrator for approval.</p>
                   </div>
                 </div>
               )}
@@ -768,7 +768,7 @@ className="h-10 min-w-0 flex-1 border-0 rounded-l-none pl-3 shadow-none focus-vi
                     ? 'Submitting...'
                     : hasPermission('reservations.cancel')
                     ? 'Confirm Cancellation'
-                    : 'Submit for Manager Approval'}
+                    : 'Submit for Admin Approval'}
                 </Button>
               </div>
             </div>

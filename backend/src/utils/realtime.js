@@ -23,6 +23,15 @@ export function broadcastRoomUpdate(payload = {}) {
   emitRealtimeUpdate('module2:rooms', { action: 'updated', room: payload });
 }
 
+export function broadcastApprovalUpdate(payload = {}) {
+  const data = {
+    ...payload,
+    timestamp: new Date().toISOString()
+  };
+  emitRealtimeUpdate('approval:update', data);
+  emitRealtimeUpdate('approval:new_request', data);
+}
+
 export function onRealtimeUpdate(event, handler) {
   emitter.on(event, handler);
 }

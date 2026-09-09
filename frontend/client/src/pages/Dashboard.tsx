@@ -277,8 +277,8 @@ export default function Dashboard() {
         </div>
       </motion.div>
 
-      {/* Manager / Admin Pending Approvals Alert */}
-      {(currentRole === "manager" || currentRole === "admin") && pendingApprovals.length > 0 && (
+      {/* Admin Pending Approvals Alert */}
+      {currentRole === "admin" && pendingApprovals.length > 0 && (
         <Card className="border-amber-500/30 bg-amber-500/5 shadow-xs">
           <CardContent className="p-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -291,7 +291,7 @@ export default function Dashboard() {
                     {pendingApprovals.length} Pending Cancellation Approval{pendingApprovals.length !== 1 ? "s" : ""}
                   </h4>
                   <p className="text-xs text-muted-foreground">
-                    Front Desk requested cancellation approval for reservation{pendingApprovals.length !== 1 ? "s" : ""}.
+                    Front Desk / Manager submitted cancellation request{pendingApprovals.length !== 1 ? "s" : ""} awaiting your approval.
                   </p>
                 </div>
               </div>

@@ -1,6 +1,6 @@
 import { prisma } from '../utils/db.js';
-import { recordAuditLog } from '../services/rbacService.js';
-import { broadcastRoomUpdate } from '../utils/realtime.js';
+import { recordAuditLog, getUserPermissions, hasPermission } from '../services/rbacService.js';
+import { broadcastRoomUpdate, broadcastApprovalUpdate } from '../utils/realtime.js';
 
 export async function listApprovalRequests(req, res) {
   try {
@@ -14,7 +14,29 @@ export async function listApprovalRequests(req, res) {
       orderBy: { createdAt: 'desc' },
     });
 
-    res.json({ success: true, data: requests });
+    // Enrich cancellation requests with full reservation and guest details
+    const cancellationResIds = requests
+      .filter(r => r.type === 'cancellation' && r.referenceId)
+      .map(r => parseInt(r.referenceId))
+      .filter(id => !isNaN(id));
+
+    let resMap = new Map();
+    if (cancellationResIds.length > 0) {
+      const reservations = await prisma.reservation.findMany({
+        where: { id: { in: cancellationResIds } },
+        include: { guest: true, room: true },
+      });
+      reservations.forEach(r => resMap.set(String(r.id), r));
+    }
+
+    const enriched = requests.map(r => {
+      if (r.type === 'cancellation' && r.referenceId && resMap.has(String(r.referenceId))) {
+        return { ...r, reservation: resMap.get(String(r.referenceId)) };
+      }
+      return r;
+    });
+
+    res.json({ success: true, data: enriched });
   } catch (error) {
     console.error('Error fetching approval requests:', error);
     res.status(500).json({ success: false, message: 'Failed to retrieve approval requests' });
@@ -34,7 +56,7 @@ export async function createApprovalRequest(req, res) {
         referenceId: String(referenceId),
         requestedBy: req.user?.name || req.user?.email || 'Receptionist',
         requestedById: req.user?.id || null,
-        reason: reason || 'Operation requires manager approval',
+        reason: reason || 'Cancellation requested',
         status: 'pending',
       },
     });
@@ -47,6 +69,25 @@ export async function createApprovalRequest(req, res) {
           where: { id: resId },
           data: { status: 'cancellation_requested' },
         }).catch(() => {});
+
+        // Create Admin notification
+        await prisma.appNotification.create({
+          data: {
+            type: 'cancellation',
+            title: 'Reservation Cancellation Request',
+            message: `${req.user?.name || 'Staff'} submitted a cancellation request for Reservation #${resId}. Reason: ${reason || 'Not specified'}`,
+            isRead: false,
+          },
+        }).catch(() => {});
+
+        // Broadcast real-time approval update
+        broadcastApprovalUpdate({
+          type: 'cancellation',
+          referenceId: String(resId),
+          status: 'pending',
+          requestedBy: req.user?.name || req.user?.email || 'Staff',
+          reason: reason || 'Not specified',
+        });
       }
     }
 
@@ -54,15 +95,15 @@ export async function createApprovalRequest(req, res) {
       userId: req.user?.id,
       userEmail: req.user?.email,
       userName: req.user?.name,
-      action: 'APPROVE',
+      action: 'CANCEL',
       module: 'approvals',
-      details: `Submitted approval request for ${type} (Ref: ${referenceId})`,
+      details: `Submitted cancellation request for Reservation #${referenceId} to Admin. Reason: ${reason || 'Not specified'}`,
       ipAddress: req.ip,
     });
 
     res.status(201).json({
       success: true,
-      message: 'Cancellation requires Manager approval.',
+      message: 'Cancellation request submitted to Admin for approval.',
       data: request,
     });
   } catch (error) {
@@ -88,11 +129,24 @@ export async function reviewApprovalRequest(req, res) {
       return res.status(404).json({ success: false, message: 'Approval request not found' });
     }
 
+    // Role check: Only Admin can approve or reject cancellation requests
+    if (existing.type === 'cancellation') {
+      const userPermissions = req.userPermissions || await getUserPermissions(req.user);
+      if (!hasPermission(userPermissions, 'reservations.approve')) {
+        return res.status(403).json({
+          success: false,
+          message: 'Only Administrators can approve or reject reservation cancellation requests.',
+        });
+      }
+    }
+
+    const reviewerName = req.user?.name || req.user?.email || 'Admin';
+
     const updated = await prisma.approvalRequest.update({
       where: { id: parseInt(id) },
       data: {
         status,
-        reviewedBy: req.user?.name || req.user?.email || 'Authorized Manager',
+        reviewedBy: reviewerName,
         reviewedAt: new Date(),
       },
     });
@@ -116,13 +170,41 @@ export async function reviewApprovalRequest(req, res) {
             });
             broadcastRoomUpdate({ roomId: resv.roomId, status: 'clean', availability: true, action: 'cancelled' });
           }
+
+          // Create notification for staff/admin
+          await prisma.appNotification.create({
+            data: {
+              type: 'cancellation',
+              title: 'Cancellation Approved',
+              message: `${reviewerName} approved cancellation for Reservation #${resId}. Room has been released.`,
+              isRead: false,
+            },
+          }).catch(() => {});
         } else {
           // If rejected, revert status back to confirmed
           await prisma.reservation.update({
             where: { id: resId },
             data: { status: 'confirmed' },
           });
+
+          // Create notification for staff/admin
+          await prisma.appNotification.create({
+            data: {
+              type: 'cancellation',
+              title: 'Cancellation Rejected',
+              message: `${reviewerName} rejected cancellation for Reservation #${resId}. Reservation remains confirmed.`,
+              isRead: false,
+            },
+          }).catch(() => {});
         }
+
+        // Broadcast real-time approval review update
+        broadcastApprovalUpdate({
+          type: 'cancellation',
+          referenceId: String(resId),
+          status,
+          reviewedBy: reviewerName,
+        });
       }
     } else if (existing.type === 'expense') {
       const expId = parseInt(existing.referenceId);
@@ -131,7 +213,7 @@ export async function reviewApprovalRequest(req, res) {
           where: { id: expId },
           data: {
             status,
-            approvedBy: req.user?.name || req.user?.email || 'Authorized Manager',
+            approvedBy: reviewerName,
           },
         }).catch(() => {});
       }
@@ -143,13 +225,13 @@ export async function reviewApprovalRequest(req, res) {
       userName: req.user?.name,
       action: 'APPROVE',
       module: 'approvals',
-      details: `${status.toUpperCase()} approval request #${id} (${existing.type} Ref: ${existing.referenceId})`,
+      details: `${status.toUpperCase()} approval request #${id} (${existing.type} Ref: ${existing.referenceId}) by ${reviewerName}`,
       ipAddress: req.ip,
     });
 
     res.json({
       success: true,
-      message: `Request successfully ${status}`,
+      message: `Cancellation request ${status === 'approved' ? 'accepted and reservation cancelled' : 'rejected and reservation restored'}.`,
       data: updated,
     });
   } catch (error) {
@@ -157,3 +239,4 @@ export async function reviewApprovalRequest(req, res) {
     res.status(500).json({ success: false, message: 'Failed to process approval request' });
   }
 }
+
