@@ -71,24 +71,26 @@ export async function sendCheckInEmail({ guestEmail, guestName, reservationId, r
  */
 export async function sendPasswordResetEmail({ toEmail, resetToken }) {
   try {
-    const appBaseUrl = process.env.APP_BASE_URL || 'http://localhost:5173';
-    const resetUrl = `${appBaseUrl}/reset-password?email=${encodeURIComponent(toEmail)}&token=${encodeURIComponent(resetToken)}`;
+    const appBaseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_BASE_URL || 'http://localhost:5173';
+    const resetUrl = `${appBaseUrl.replace(/\/$/, '')}/reset-password?token=${encodeURIComponent(resetToken)}`;
 
-    console.log(`\n======================================================`);
-    console.log(`[PASSWORD RESET EMAIL DISPATCH]`);
-    console.log(`To: ${toEmail}`);
-    console.log(`Reset URL: ${resetUrl}`);
-    console.log(`======================================================\n`);
+    console.log(`[Auth] Attempting to send password reset email to ${toEmail}`);
 
-    const smtpHost = process.env.SMTP_HOST || 'smtp.gmail.com';
-    const smtpUser = process.env.SMTP_USER || 'lakshmisneha757@gmail.com';
-    const smtpPass = process.env.SMTP_PASS || 'lsoq bmag nwit lhea';
+    const smtpHost = process.env.EMAIL_HOST || process.env.SMTP_HOST || 'smtp.gmail.com';
+    const smtpPort = Number(process.env.EMAIL_PORT || process.env.SMTP_PORT || 587);
+    const smtpUser = process.env.EMAIL_USER || process.env.SMTP_USER;
+    const smtpPass = process.env.EMAIL_PASSWORD || process.env.SMTP_PASS;
+
+    if (!smtpUser || !smtpPass) {
+      console.error(`[Email Service] SMTP Error: EMAIL_USER or EMAIL_PASSWORD missing in .env`);
+      return { success: false, error: 'SMTP credentials missing' };
+    }
 
     const nodemailer = await import('nodemailer');
     const transporter = nodemailer.createTransport({
       host: smtpHost,
-      port: Number(process.env.SMTP_PORT) || 587,
-      secure: process.env.SMTP_SECURE === 'true',
+      port: smtpPort,
+      secure: process.env.EMAIL_SECURE === 'true' || smtpPort === 465,
       auth: {
         user: smtpUser,
         pass: smtpPass,
@@ -96,34 +98,52 @@ export async function sendPasswordResetEmail({ toEmail, resetToken }) {
     });
 
     const mailInfo = await transporter.sendMail({
-      from: `"InnKeeper Portal Support" <${process.env.SMTP_FROM || smtpUser}>`,
+      from: `"InnKeeper Portal Support" <${process.env.EMAIL_FROM || process.env.SMTP_FROM || smtpUser}>`,
       to: toEmail,
       subject: 'Reset Your InnKeeper Account Password',
       html: `
-        <div style="font-family: Arial, sans-serif; padding: 20px; background-color: #f8fafc; color: #1e293b;">
-          <div style="max-width: 600px; margin: 0 auto; background: #ffffff; padding: 24px; border-radius: 16px; border: 1px solid #e2e8f0;">
-            <h2 style="color: #2563eb; margin-top: 0;">Password Reset Request</h2>
-            <p>Hello,</p>
-            <p>We received a request to reset your password for your InnKeeper account (<strong>${toEmail}</strong>).</p>
-            <p>Click the button below to choose a new password. This link is valid for 1 hour.</p>
-            <div style="text-align: center; margin: 30px 0;">
-              <a href="${resetUrl}" style="background-color: #2563eb; color: #ffffff; padding: 14px 28px; border-radius: 12px; text-decoration: none; font-weight: bold; display: inline-block;">
-                Reset Password Now &rarr;
-              </a>
-            </div>
-            <p style="font-size: 13px; color: #64748b;">Or copy and paste this link into your browser:</p>
-            <p style="font-size: 12px; color: #2563eb; word-break: break-all;">${resetUrl}</p>
-            <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
-            <p style="font-size: 12px; color: #64748b; text-align: center;">If you did not request a password reset, you can safely ignore this email.</p>
-          </div>
-        </div>
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+          <meta charset="UTF-8">
+          <title>Reset your InnKeeper password</title>
+        </head>
+        <body style="margin: 0; padding: 0; background-color: #f6f8fa; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+          <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #f6f8fa; padding: 40px 20px;">
+            <tr>
+              <td align="center">
+                <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width: 540px; background-color: #ffffff; border: 1px solid #d0d7de; border-radius: 8px; overflow: hidden; box-shadow: 0 3px 6px rgba(140,149,159,0.15);">
+                  <tr>
+                    <td style="padding: 28px 32px 16px 32px; border-bottom: 1px solid #e1e4e8;">
+                      <span style="font-size: 18px; font-weight: 700; color: #1e293b;">InnKeeper PMS</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 24px 32px 32px 32px;">
+                      <h1 style="font-size: 20px; font-weight: 600; color: #0f172a; margin-top: 0; margin-bottom: 20px;">Reset your InnKeeper password</h1>
+                      <p style="font-size: 14px; line-height: 1.6; color: #334155;">Hello,</p>
+                      <p style="font-size: 14px; line-height: 1.6; color: #334155;">We received a request to reset your password for your InnKeeper account. You can use the button below to reset your password:</p>
+                      <div style="margin: 24px 0;">
+                        <a href="${resetUrl}" target="_blank" style="font-size: 14px; font-weight: 600; color: #ffffff; background-color: #2f6c85; padding: 12px 24px; border-radius: 6px; text-decoration: none; display: inline-block;">Reset your password</a>
+                      </div>
+                      <p style="font-size: 13px; color: #64748b;">This password reset link will expire after 30 minutes.</p>
+                      <p style="font-size: 13px; color: #64748b;">If you didn't request a password reset, you can safely ignore this email.</p>
+                      <p style="font-size: 14px; color: #334155; margin-top: 24px; margin-bottom: 0;">Thanks,<br><strong>The InnKeeper Team</strong></p>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+        </body>
+        </html>
       `,
     });
 
-    console.log(`[SMTP Mail Delivered Successfully]: Message ID ${mailInfo.messageId}`);
+    console.log(`[Auth] Password reset email sent successfully (Message ID: ${mailInfo.messageId})`);
     return { success: true, resetUrl, messageId: mailInfo.messageId };
   } catch (err) {
-    console.error('[SMTP Mail Delivery Error]:', err.message);
+    console.error('[Auth] Error sending email via SMTP:', err.message);
     return { success: false, error: err.message };
   }
 }

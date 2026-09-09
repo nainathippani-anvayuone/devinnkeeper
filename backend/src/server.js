@@ -1,18 +1,22 @@
-import express from 'express';
-import cors from 'cors';
-import cookieParser from 'cookie-parser';
-import dotenv from 'dotenv';
-import router from './routes/index.js';
-import { errorHandler } from './middleware/errorHandler.js';
-import { initializeDb } from './utils/db.js';
-
 import path from 'path';
 import { fileURLToPath } from 'url';
+import dotenv from 'dotenv';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Load backend/.env immediately before importing controllers or routes
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
-dotenv.config();
+dotenv.config({ path: path.resolve(process.cwd(), '.env') });
+dotenv.config({ path: path.resolve(process.cwd(), 'backend/.env') });
+
+import express from 'express';
+import cors from 'cors';
+import cookieParser from 'cookie-parser';
+import router from './routes/index.js';
+import { errorHandler } from './middleware/errorHandler.js';
+import { initializeDb } from './utils/db.js';
+import { verifyEmailConfigOnStartup } from './utils/email.js';
 
 const app = express();
 const allowedOrigins = new Set([
@@ -47,7 +51,8 @@ app.use(errorHandler);
 
 const port = process.env.PORT || 5000;
 
-initializeDb().then(() => {
+initializeDb().then(async () => {
+  await verifyEmailConfigOnStartup();
   app.listen(port, () => {
     console.log(`Server running on port ${port}`);
   });
