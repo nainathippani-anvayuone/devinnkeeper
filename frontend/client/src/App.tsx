@@ -13,13 +13,44 @@ import CheckInVerification from "@/pages/CheckInVerification";
 import { Redirect, Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
-import { AuthProvider, useAuthContext } from "./contexts/AuthContext";
+import { AuthProvider, useAuthContext, AppRole, ROLE_NAMES } from "./contexts/AuthContext";
 import DashboardLayout from "./components/DashboardLayout";
 import Dashboard from "./pages/Dashboard";
 import LoginPage from "./pages/auth/LoginPage";
 import SignupPage from "./pages/auth/SignupPage";
 import ForgotPasswordPage from "./pages/auth/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/auth/ResetPasswordPage";
+import { ShieldAlert } from "lucide-react";
+
+export function RoleGuard({
+  allowedRoles,
+  children,
+}: {
+  allowedRoles: AppRole[];
+  children: React.ReactNode;
+}) {
+  const { currentRole } = useAuthContext();
+  if (allowedRoles.includes(currentRole)) {
+    return <>{children}</>;
+  }
+
+  return (
+    <div className="flex min-h-[65vh] flex-col items-center justify-center p-6 text-center">
+      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-3xl bg-rose-500/10 text-rose-600 shadow-xs">
+        <ShieldAlert className="h-8 w-8" />
+      </div>
+      <h2 className="text-2xl font-bold text-foreground">Access Restricted</h2>
+      <p className="mt-2 max-w-md text-sm text-muted-foreground">
+        This module is reserved for <strong>{allowedRoles.map(r => ROLE_NAMES[r]).join(" or ")}</strong>. Your active role is <strong className="text-foreground">{ROLE_NAMES[currentRole]}</strong>.
+      </p>
+      <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+        <a href="/" className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm hover:opacity-90">
+          Return to Dashboard
+        </a>
+      </div>
+    </div>
+  );
+}
 
 function ProtectedApp() {
   const { isAuthenticated, loading } = useAuthContext();
@@ -41,18 +72,22 @@ function ProtectedApp() {
   return (
     <DashboardLayout>
       <Switch>
-        <Route path={"/"} component={Dashboard} />
-        <Route path={"/dashboard"} component={Dashboard} />
-        <Route path={"/payments"} component={Payments} />
-        <Route path={"/vehicles"} component={Vehicles} />
-        <Route path={"/cash-ledger"} component={CashLedger} />
-        <Route path={"/shift-audits"} component={ShiftAudits} />
-        <Route path={"/reservations"} component={Reservations} />
-        <Route path={"/checkin"} component={CheckInVerification} />
-        <Route path={"/guests"} component={Guests} />
-        <Route path={"/housekeeping"} component={Housekeeping} />
-        <Route path={"/maintenance"} component={Maintenance} />
-        <Route path={"/404"} component={NotFound} />
+        <Route path="/" component={Dashboard} />
+        <Route path="/dashboard" component={Dashboard} />
+        <Route path="/reservations" component={Reservations} />
+        <Route path="/checkin" component={CheckInVerification} />
+        <Route path="/guests" component={Guests} />
+        <Route path="/payments" component={Payments} />
+        <Route path="/housekeeping" component={Housekeeping} />
+        <Route path="/maintenance" component={Maintenance} />
+        <Route path="/vehicles" component={Vehicles} />
+        <Route path="/cash-ledger" component={CashLedger} />
+        <Route path="/shift-audits">
+          <RoleGuard allowedRoles={["admin", "manager"]}>
+            <ShiftAudits />
+          </RoleGuard>
+        </Route>
+        <Route path="/404" component={NotFound} />
         <Route component={NotFound} />
       </Switch>
     </DashboardLayout>

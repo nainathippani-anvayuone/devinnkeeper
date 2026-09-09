@@ -8,7 +8,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuthContext } from '@/contexts/AuthContext';
 
-const roleOptions = ['Admin', 'Manager', 'Receptionist'];
+const roleOptions = [
+  { label: 'Admin (Hotel Configuration & Structure)', value: 'admin' },
+  { label: 'Manager (Hotel Operations)', value: 'manager' },
+  { label: 'Receptionist (Front Desk)', value: 'receptionist' },
+];
 
 export interface CountryCode {
   code: string;
@@ -116,7 +120,7 @@ export default function SignupPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [selectedCountry, setSelectedCountry] = useState<CountryCode>(COUNTRY_CODES[0]); // Default India +91
-  const [form, setForm] = useState({ name: '', email: '', phone: '', password: '', confirmPassword: '', role: 'Receptionist' });
+  const [form, setForm] = useState({ name: '', email: '', phone: '', password: '', confirmPassword: '', role: 'manager' });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
 
@@ -214,21 +218,24 @@ export default function SignupPage() {
     setErrors((prev) => ({ ...prev, [field]: err }));
   };
 
+  const [submitting, setSubmitting] = useState(false);
+
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
+    if (submitting) return;
     setTouched({ name: true, email: true, phone: true, password: true, confirmPassword: true });
     if (!validate()) return;
+    setSubmitting(true);
     try {
       const fullPhone = `${selectedCountry.dialCode} ${form.phone.trim()}`;
       await signup({ ...form, phone: fullPhone, role: form.role.toLowerCase() });
-      if (logout) {
-        await logout();
-      }
       toast.success('Account created successfully! Please sign in with your password.');
       setLocation(`/login?email=${encodeURIComponent(form.email.trim())}`);
     } catch (err: any) {
       const msg = err?.response?.data?.error || err?.message || 'Signup failed.';
       toast.error(msg);
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -236,7 +243,7 @@ export default function SignupPage() {
     <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(14,116,144,0.12),_transparent_35%),linear-gradient(135deg,_#fdfcf7_0%,_#f5efe5_45%,_#eef6f8_100%)] p-4 sm:p-6 lg:p-8">
       <div className="mx-auto flex min-h-screen max-w-6xl items-center justify-center">
         <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }} className="grid w-full gap-6 overflow-hidden rounded-[32px] border border-amber-100/80 bg-white/80 p-4 shadow-[0_25px_80px_rgba(15,23,42,0.10)] backdrop-blur-xl lg:grid-cols-[0.95fr_1.05fr] lg:p-8">
-          <div className="flex flex-col justify-between rounded-[24px] bg-gradient-to-br from-[#1f4f6f] via-[#2f6c85] to-[#5c8f8b] p-8 text-white">
+          <div className="hidden flex-col justify-between rounded-[24px] bg-gradient-to-br from-[#1f4f6f] via-[#2f6c85] to-[#5c8f8b] p-8 text-white lg:flex">
             <div>
               <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-2xl border border-white/20 bg-white/15">
                 <ShieldCheck className="h-6 w-6" />
@@ -372,13 +379,13 @@ export default function SignupPage() {
 
               <div className="space-y-2">
                 <Label htmlFor="role">Role</Label>
-                <select id="role" value={form.role} onChange={(e) => setForm((prev) => ({ ...prev, role: e.target.value }))} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm">
-                  {roleOptions.map((role) => <option key={role} value={role}>{role}</option>)}
+                <select id="role" value={form.role} onChange={(e) => setForm((prev) => ({ ...prev, role: e.target.value }))} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm font-medium">
+                  {roleOptions.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                 </select>
               </div>
 
-              <Button type="submit" className="w-full rounded-2xl bg-[#2f6c85] text-white hover:bg-[#255a6d]" disabled={loading}>
-                {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Creating account...</> : <>Create Account <Check className="ml-2 h-4 w-4" /></>}
+              <Button type="submit" className="w-full rounded-2xl bg-[#2f6c85] text-white hover:bg-[#255a6d]" disabled={loading || submitting}>
+                {loading || submitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Creating account...</> : <>Create Account <Check className="ml-2 h-4 w-4" /></>}
               </Button>
             </form>
 

@@ -25,10 +25,11 @@ import { api } from "@/lib/api";
 
 // Sample Available Rooms List for Selection
 const AVAILABLE_ROOMS = [
-  { id: 101, type: "Deluxe King Suite", price: 189, floor: 1, capacity: 2, amenities: ["King Bed", "Ocean View", "Free WiFi", "Smart Lock"], image: "https://images.unsplash.com/photo-1590490360182-c33d57733427?w=600&auto=format&fit=crop" },
-  { id: 102, type: "Executive Double Room", price: 219, floor: 1, capacity: 4, amenities: ["2 Queen Beds", "Work Desk", "Mini Bar", "Keyless Entry"], image: "https://images.unsplash.com/photo-1566665797739-1674de7a421a?w=600&auto=format&fit=crop" },
-  { id: 201, type: "Penthouse Skyline Suite", price: 349, floor: 2, capacity: 3, amenities: ["Balcony View", "Jacuzzi", "High-speed Fiber", "Express Check-In"], image: "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=600&auto=format&fit=crop" },
-  { id: 202, type: "Standard Queen Room", price: 139, floor: 2, capacity: 2, amenities: ["Queen Bed", "Smart TV", "Air Conditioned"], image: "https://images.unsplash.com/photo-1618773928121-c32242e63f39?w=600&auto=format&fit=crop" }
+  { id: 101, type: "Deluxe King Suite", price: 189, floor: 1, capacity: 2, amenities: ["King Bed", "Ocean View", "Free WiFi", "Smart Lock"], image: "/rooms/deluxe.png" },
+  { id: 102, type: "Cozy Family Suite", price: 219, floor: 1, capacity: 4, amenities: ["2 Queen Beds", "Home Movie Projector", "Family Lounge", "Smart Lock"], image: "/rooms/family.png" },
+  { id: 201, type: "Penthouse Skyline Suite", price: 349, floor: 2, capacity: 3, amenities: ["Balcony View", "Jacuzzi", "High-speed Fiber", "Express Check-In"], image: "/rooms/premium.png" },
+  { id: 202, type: "Standard Queen Room", price: 139, floor: 2, capacity: 2, amenities: ["Queen Bed", "Smart TV", "Air Conditioned"], image: "/rooms/standard.png" },
+  { id: 301, type: "Executive Garden Suite", price: 279, floor: 3, capacity: 3, amenities: ["King Bed", "Garden Bay Window", "Chaise Lounge", "Mini Bar"], image: "/rooms/suite.png" }
 ];
 
 type RazorpayResponse = {
@@ -707,7 +708,7 @@ export default function CheckInVerification() {
             onClick={() => handleSend3HourReminder()}
             disabled={sendingReminder}
             size="sm"
-            className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold px-4 py-2 gap-2 shadow-sm"
+            className="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold px-4 py-2 gap-2 shadow-sm cursor-pointer"
           >
             {sendingReminder ? t("common.submitting") : t("checkin.send3hReminder")}
           </Button>
@@ -758,15 +759,27 @@ export default function CheckInVerification() {
                 const resCode = `RES-${String(r.id).padStart(4, '0')}`;
                 const roomNum = r.roomNumber || r.room?.room_number || r.room?.number || r.roomId || "—";
                 const isIdDone = r.verificationStatus === "VERIFIED" || Boolean(r.dlImageUrl);
-                const isCheckedIn = (r.status || '').toLowerCase().includes('check');
-                const isCancelled = (r.status || '').toLowerCase() === 'cancelled';
-                let tag = "Pending ID";
-                if (isCheckedIn) tag = t("reservations.checkedIn");
-                else if (isCancelled) tag = "రద్దు చేయబడింది [Cancelled]";
-                else if (isIdDone) tag = t("checkin.identityVerified");
+                const statusLower = (r.status || '').toLowerCase();
+                const isCheckedIn = statusLower.includes('check');
+                const isCancelled = statusLower === 'cancelled';
+                const isCancellationRequested = statusLower === 'cancellation_requested';
+
+                let tag = t("checkin.pendingId", "Pending ID");
+                if (isCheckedIn) {
+                  tag = t("reservations.checkedIn", "Checked In");
+                } else if (isCancelled) {
+                  tag = t("reservations.cancelled", "Cancelled");
+                } else if (isCancellationRequested) {
+                  tag = t("reservations.cancellationRequested", "Cancellation Requested");
+                } else if (isIdDone) {
+                  tag = t("checkin.identityVerified", "Identity Verified");
+                }
+
+                const roomLabel = roomNum !== "—" ? t("roomDrawer.roomNumber", { number: roomNum }) : "—";
+
                 return (
                   <option key={r.id} value={String(r.id)}>
-                    {resCode} - {name} ({t("dashboard.rooms")} #{roomNum}) [{tag}]
+                    {resCode} - {name} ({roomLabel}) [{tag}]
                   </option>
                 );
               })}
@@ -796,7 +809,7 @@ export default function CheckInVerification() {
 
                 <div className="pt-1">
                   <span className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-blue-500/10 text-blue-700 dark:text-blue-300 text-xs font-bold border border-blue-500/20">
-                    ✓ {t("dashboard.rooms")} #{selectedReservation.roomNumber || selectedReservation.room?.room_number || selectedReservation.room?.number || selectedReservation.roomId || "101"} {t("reservations.checkedIn")}
+                    ✓ {t("roomDrawer.roomNumber", { number: selectedReservation.roomNumber || selectedReservation.room?.room_number || selectedReservation.room?.number || selectedReservation.roomId || "101" })} · {t("reservations.checkedIn")}
                   </span>
                 </div>
               </div>
@@ -810,13 +823,17 @@ export default function CheckInVerification() {
 
                 <div>
                   <span className="text-[11px] font-extrabold tracking-widest uppercase text-rose-600 dark:text-rose-400 bg-rose-500/15 px-3.5 py-1 rounded-full">
-                    రద్దు చేయబడింది (Cancelled)
+                    {t("checkin.cancelledBadge", "RESERVATION CANCELLED")}
                   </span>
                   <h3 className="text-lg font-black text-foreground mt-2 leading-tight">
-                    ఈ రిజర్వేషన్ రద్దు చేయబడింది
+                    {t("checkin.cancelledHeading", "This reservation has been cancelled")}
                   </h3>
                   <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                    Reservation RES-{String(selectedReservation.id).padStart(4, '0')} ({selectedReservation.guest ? `${selectedReservation.guest.firstName} ${selectedReservation.guest.lastName}` : "Guest"}) రద్దు చేయబడింది. చెక్-ఇన్ తనిఖీ చేయడానికి వేరే యాక్టివ్ రిజర్వేషన్‌ను ఎంచుకోండి.
+                    {t("checkin.cancelledBody", {
+                      code: `RES-${String(selectedReservation.id).padStart(4, '0')}`,
+                      name: selectedReservation.guest ? `${selectedReservation.guest.firstName} ${selectedReservation.guest.lastName}` : "Guest",
+                      defaultValue: `Reservation RES-${String(selectedReservation.id).padStart(4, '0')} is cancelled. Please choose an active reservation to proceed.`
+                    })}
                   </p>
                 </div>
               </div>
@@ -898,10 +915,10 @@ export default function CheckInVerification() {
                     <div className="pt-3">
                       <Button
                         onClick={() => setStep(2)}
-                        className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold px-6 py-3 shadow-md gap-2"
+                        className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold px-4 sm:px-6 py-3 shadow-md gap-2 cursor-pointer flex items-center justify-center"
                       >
                         <span>కొనసాగించండి: చెల్లింపు ప్రక్రియ (Continue to Step 2: Payment)</span>
-                        <ChevronRight className="w-4 h-4" />
+                        <ChevronRight className="w-4 h-4 shrink-0" />
                       </Button>
                     </div>
                   </div>
@@ -1006,7 +1023,7 @@ export default function CheckInVerification() {
                         : "bg-rose-500/10 border-rose-500/30 text-rose-700 dark:text-rose-400"
                       }`}
                   >
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                       <div className="flex items-center gap-3">
                         {verificationResult.verificationStatus === "VERIFIED" ? (
                           <CheckCircle2 className="w-6 h-6 text-emerald-500 shrink-0" />
@@ -1035,7 +1052,7 @@ export default function CheckInVerification() {
                         <Button
                           onClick={() => setStep(2)}
                           title="Proceed to Next Step"
-                          className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold px-4 py-2.5 shrink-0 gap-1.5 shadow-md transition hover:scale-105 flex items-center"
+                          className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold px-4 py-2.5 shrink-0 gap-1.5 shadow-md transition hover:scale-105 flex items-center justify-center cursor-pointer"
                         >
                           <span>{t("checkin.nextStep")}</span>
                           <ChevronRight className="w-4 h-4" />

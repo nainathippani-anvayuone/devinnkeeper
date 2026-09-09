@@ -2,6 +2,7 @@ import { generateDigitalKeyPayload, LockService } from '../lock/lock.service.js'
 import { sendCheckInEmail } from '../utils/emailNotifier.js';
 import { createPaymentOrderForReservation } from './razorpayController.js';
 import { prisma } from '../utils/db.js';
+import { broadcastRoomUpdate } from '../utils/realtime.js';
 import crypto from 'crypto';
 
 const lockService = new LockService();
@@ -421,8 +422,9 @@ export async function completeGuestCheckIn(req, res) {
       try {
         await prisma.room.update({
           where: { id: reservation.roomId },
-          data: { status: 'occupied', availability: false }
+          data: { status: 'occupied', availability: false, last_updated: new Date() }
         });
+        broadcastRoomUpdate({ roomId: reservation.roomId, status: 'occupied', availability: false, action: 'checkin' });
       } catch (e) {
         console.log('Room status update note:', e.message);
       }
@@ -513,8 +515,9 @@ export async function generateDigitalLockKey(req, res) {
       try {
         await prisma.room.update({
           where: { id: reservation.roomId },
-          data: { status: 'occupied', availability: false }
+          data: { status: 'occupied', availability: false, last_updated: new Date() }
         });
+        broadcastRoomUpdate({ roomId: reservation.roomId, status: 'occupied', availability: false, action: 'checkin' });
       } catch (rErr) {
         console.log('Room status update note:', rErr.message);
       }
