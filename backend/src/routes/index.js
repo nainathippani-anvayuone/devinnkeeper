@@ -1,8 +1,8 @@
 import express from 'express';
 
-// Middleware
 import { authenticateToken } from '../middleware/authMiddleware.js';
 import { requireRole } from '../middleware/rbac.js';
+import { forgotPasswordRateLimiter } from '../middleware/rateLimiter.js';
 
 // Auth
 import {
@@ -96,7 +96,7 @@ router.post('/auth/signup', signup);
 router.post('/auth/login', login);
 router.get('/auth/me', me);
 router.post('/auth/logout', logout);
-router.post('/auth/forgot-password', forgotPassword);
+router.post('/auth/forgot-password', forgotPasswordRateLimiter, forgotPassword);
 router.post('/auth/reset-password', resetPassword);
 
 // ─── Check-In & Digital Lock Key Generation (Protected / Verified) ─

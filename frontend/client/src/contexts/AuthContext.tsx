@@ -26,7 +26,7 @@ type AuthContextValue = {
   }) => Promise<void>;
   logout: () => Promise<void>;
   forgotPassword: (email: string) => Promise<{ message: string; resetToken?: string }>;
-  resetPassword: (payload: { email: string; token: string; password: string; confirmPassword: string }) => Promise<void>;
+  resetPassword: (payload: { email?: string; token: string; password: string; confirmPassword: string }) => Promise<void>;
   refresh: () => Promise<void>;
 };
 
@@ -156,14 +156,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const resetPassword = async (payload: { email: string; token?: string; password: string; confirmPassword: string }) => {
+  const resetPassword = async (payload: { email?: string; token: string; password: string; confirmPassword: string }) => {
     setLoading(true);
     try {
-      await apiClient.auth.resetPassword(payload);
+      const response = await apiClient.auth.resetPassword(payload);
       setError(null);
-    } catch {
-      // Allow password reset without requiring token verification
-      setError(null);
+      return response.data;
+    } catch (err: any) {
+      const message = err?.response?.data?.message || err?.response?.data?.error || 'Unable to reset password.';
+      setError(message);
+      throw err;
     } finally {
       setLoading(false);
     }

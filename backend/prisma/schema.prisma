@@ -158,16 +158,30 @@ model Statistics {
 }
 
 model User {
-  id         Int      @id @default(autoincrement())
-  name       String
-  email      String   @unique
-  phone      String?
-  password   String
-  role       String   @default("receptionist")
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
+  id                  Int                  @id @default(autoincrement())
+  name                String
+  email               String               @unique
+  phone               String?
+  password            String
+  role                String               @default("receptionist")
+  created_at          DateTime             @default(now())
+  updated_at          DateTime             @updatedAt
+  passwordResetTokens PasswordResetToken[]
 
   @@index([role])
+}
+
+model PasswordResetToken {
+  id        Int      @id @default(autoincrement())
+  tokenHash String   @unique
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
 }
 
 model Guest {
