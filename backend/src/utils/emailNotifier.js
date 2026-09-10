@@ -79,7 +79,7 @@ export async function sendCheckInEmail({ guestEmail, guestName, guestId, reserva
       return { success: false, emailSent: false, error, category: 'invalid-recipient' };
     }
 
-    const appBaseUrl = process.env.APP_BASE_URL || 'http://localhost:5173';
+    const appBaseUrl = process.env.APP_BASE_URL || process.env.NEXT_PUBLIC_APP_URL || process.env.FRONTEND_URL || 'http://localhost:5173';
     const checkInToken = createCheckInAccessToken({
       reservationId,
       guestId,
@@ -132,7 +132,7 @@ export async function sendCheckInEmail({ guestEmail, guestName, guestId, reserva
  */
 export async function sendPasswordResetEmail({ toEmail, resetToken }) {
   try {
-    const appBaseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_BASE_URL || 'http://localhost:5173';
+    const appBaseUrl = process.env.APP_BASE_URL || process.env.NEXT_PUBLIC_APP_URL || process.env.FRONTEND_URL || 'http://localhost:5173';
     const resetUrl = `${appBaseUrl.replace(/\/$/, '')}/reset-password?token=${encodeURIComponent(resetToken)}`;
 
     console.log(`[Auth] Attempting to send password reset email to ${toEmail}`);

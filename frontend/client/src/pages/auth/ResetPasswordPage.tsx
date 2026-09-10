@@ -20,11 +20,13 @@ export default function ResetPasswordPage() {
   const [isSuccess, setIsSuccess] = useState(false);
 
   // Extract token from either window.location.search or wouter location
-  const token = useMemo(() => {
+  const queryParams = useMemo(() => {
     const searchString = window.location.search || (location.includes('?') ? location.split('?')[1] : '');
-    const params = new URLSearchParams(searchString);
-    return params.get('token') || '';
+    return new URLSearchParams(searchString);
   }, [location]);
+
+  const token = queryParams.get('token') || '';
+  const email = queryParams.get('email') || undefined;
 
   const isTokenMissing = !token.trim();
 
@@ -62,6 +64,7 @@ export default function ResetPasswordPage() {
 
     try {
       await resetPassword({
+        email,
         token: token.trim(),
         password,
         confirmPassword,

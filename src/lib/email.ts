@@ -13,8 +13,8 @@ export async function sendPasswordResetEmail({
   name?: string;
 }): Promise<{ success: boolean; messageId?: string; resetUrl: string; error?: string }> {
   const appBaseUrl =
-    process.env.NEXT_PUBLIC_APP_URL ||
     process.env.APP_BASE_URL ||
+    process.env.NEXT_PUBLIC_APP_URL ||
     'http://localhost:5173';
 
   const resetUrl = `${appBaseUrl.replace(/\/$/, '')}/reset-password?token=${encodeURIComponent(token)}`;

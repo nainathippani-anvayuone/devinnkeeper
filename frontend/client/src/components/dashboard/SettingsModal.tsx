@@ -73,7 +73,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                       {user?.role || "Staff"}
                     </Badge>
                   </div>
-                  <p className="text-xs text-muted-foreground">{user?.email || "staff@innkeeper.com"}</p>
+                  <p className="text-xs text-muted-foreground">{user?.email || "example@gmail.com"}</p>
                 </div>
               </div>
             </div>

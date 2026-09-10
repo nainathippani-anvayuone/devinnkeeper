@@ -45,20 +45,20 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(14,116,144,0.12),_transparent_35%),linear-gradient(135deg,_#fdfcf7_0%,_#f5efe5_45%,_#eef6f8_100%)] p-4 sm:p-6 lg:p-8">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(184,149,114,0.12),_transparent_35%),linear-gradient(135deg,_#fdfcf7_0%,_#f5efe5_45%,_#eef6f8_100%)] p-4 sm:p-6 lg:p-8">
       <div className="mx-auto flex min-h-screen max-w-xl items-center justify-center">
         <motion.div
           initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.35 }}
-          className="w-full rounded-[32px] border border-amber-100/80 bg-white/85 p-6 sm:p-10 shadow-[0_25px_80px_rgba(15,23,42,0.10)] backdrop-blur-xl"
+          className="w-full rounded-[32px] border border-[#e9d8c3] bg-white/85 p-6 sm:p-10 shadow-[0_25px_80px_rgba(63,42,27,0.10)] backdrop-blur-xl"
         >
           <div className="mb-6 text-center">
-            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#e9f4f2] text-[#2f6c85] shadow-inner">
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#f4eae0] text-[#6b4f34] shadow-inner">
               <KeyRound className="h-7 w-7" />
             </div>
-            <h1 className="text-2xl sm:text-3xl font-semibold text-slate-900">Forgot Password?</h1>
-            <p className="mt-2 text-sm text-slate-600 max-w-md mx-auto">
+            <h1 className="text-2xl sm:text-3xl font-semibold text-[#2f241d]">Forgot Password?</h1>
+            <p className="mt-2 text-sm text-[#5d493e] max-w-md mx-auto">
               Enter your registered email address and we will send you a password reset link.
             </p>
           </div>
@@ -87,13 +87,13 @@ export default function ForgotPasswordPage() {
                       setSubmitted(false);
                       setEmail('');
                     }}
-                    className="text-xs font-medium text-emerald-700 hover:text-emerald-900 underline underline-offset-2"
+                    className="text-xs font-medium text-[#6b4f34] hover:text-[#4a3523] underline underline-offset-2"
                   >
                     Resend or use another email
                   </button>
                   <Link
                     href="/login"
-                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#2f6c85] hover:text-[#24596d]"
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#6b4f34] hover:text-[#4a3523]"
                   >
                     <ArrowLeft className="h-3.5 w-3.5" />
                     Back to Login
@@ -103,21 +103,21 @@ export default function ForgotPasswordPage() {
             ) : (
               <form key="reset-form" onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="email" className="text-slate-700 font-medium">
+                  <Label htmlFor="email" className="text-[#4b3628] font-medium">
                     Email
                   </Label>
                   <div className="relative">
-                    <Mail className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                    <Mail className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8a6a52]" />
                     <Input
                       id="email"
                       type="email"
-                      placeholder="you@innkeeper.com"
+                      placeholder="example@gmail.com"
                       value={email}
                       onChange={(e) => {
                         setEmail(e.target.value);
                         setErrorMessage(null);
                       }}
-                      className="pl-10 rounded-2xl border-stone-200 bg-white h-11"
+                      className="pl-10 rounded-2xl border-[#e9d8c3] bg-white h-11 text-[#2f241d] placeholder:text-[#9c816e]"
                       autoComplete="email"
                       autoFocus
                     />
@@ -129,7 +129,7 @@ export default function ForgotPasswordPage() {
 
                 <Button
                   type="submit"
-                  className="w-full rounded-2xl bg-[#2f6c85] text-white hover:bg-[#255a6d] h-11 font-semibold transition-all shadow-md hover:shadow-lg"
+                  className="w-full rounded-2xl bg-[#6b4f34] text-white hover:bg-[#563c2f] h-11 font-semibold transition-all shadow-md hover:shadow-lg"
                   disabled={loading}
                 >
                   {loading ? (
@@ -145,7 +145,7 @@ export default function ForgotPasswordPage() {
                 <div className="pt-2 text-center">
                   <Link
                     href="/login"
-                    className="inline-flex items-center gap-1.5 text-sm font-medium text-[#2f6c85] hover:text-[#24596d]"
+                    className="inline-flex items-center gap-1.5 text-sm font-medium text-[#6b4f34] hover:text-[#4a3523]"
                   >
                     <ArrowLeft className="h-4 w-4" />
                     Back to Login

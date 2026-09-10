@@ -248,17 +248,22 @@ export async function forgotPassword(req, res) {
       });
 
       console.log(`[Auth] Attempting to send password reset email`);
-      // Send password reset email containing the raw token link directly to user's registered email
-      const emailResult = await sendPasswordResetEmail({
-        to: user.email,
-        name: user.name,
-        token: rawToken,
-      });
+      try {
+        // Send password reset email containing the raw token link directly to user's registered email.
+        // Keep the endpoint generic and successful even if SMTP delivery is temporarily misconfigured.
+        const emailResult = await sendPasswordResetEmail({
+          to: user.email,
+          name: user.name,
+          token: rawToken,
+        });
 
-      if (emailResult.success) {
-        console.log('[Auth] Password reset email sent successfully');
-      } else {
-        console.error(`[Auth] SMTP Dispatch Error: ${emailResult.error}`);
+        if (emailResult.success) {
+          console.log('[Auth] Password reset email sent successfully');
+        } else {
+          console.error(`[Auth] SMTP Dispatch Error: ${emailResult.error}`);
+        }
+      } catch (emailError) {
+        console.error('[Auth] Password reset email dispatch threw:', emailError?.message || emailError);
       }
     }
 

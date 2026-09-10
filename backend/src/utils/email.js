@@ -19,18 +19,20 @@ export async function sendPasswordResetEmail({ to, token, name }) {
   const resetUrl = `${appBaseUrl.replace(/\/$/, '')}/reset-password?token=${encodeURIComponent(token)}`;
   const firstName = name ? name.trim().split(' ')[0] : 'User';
 
-  const smtpHost = process.env.EMAIL_HOST || process.env.SMTP_HOST;
+  const smtpHost = process.env.EMAIL_HOST || process.env.SMTP_HOST || 'smtp.gmail.com';
   const smtpPort = process.env.EMAIL_PORT || process.env.SMTP_PORT || '587';
   const smtpUser = process.env.EMAIL_USER || process.env.SMTP_USER;
   const smtpPass = process.env.EMAIL_PASSWORD || process.env.SMTP_PASS;
   const smtpFrom = process.env.EMAIL_FROM || process.env.SMTP_FROM || (smtpUser ? `"InnKeeper Support" <${smtpUser}>` : null);
+  const portNum = Number(smtpPort);
+  const isSecure = process.env.EMAIL_SECURE === 'true' || process.env.SMTP_SECURE === 'true' || portNum === 465;
 
   const missingVars = [];
-  if (!smtpHost) missingVars.push('EMAIL_HOST');
-  if (!smtpPort) missingVars.push('EMAIL_PORT');
-  if (!smtpUser) missingVars.push('EMAIL_USER');
-  if (!smtpPass) missingVars.push('EMAIL_PASSWORD');
-  if (!smtpFrom) missingVars.push('EMAIL_FROM');
+  if (!smtpHost || smtpHost === 'smtp.gmail.com' && !process.env.EMAIL_HOST && !process.env.SMTP_HOST) missingVars.push('EMAIL_HOST/SMTP_HOST');
+  if (!smtpPort || smtpPort === '587' && !process.env.EMAIL_PORT && !process.env.SMTP_PORT) missingVars.push('EMAIL_PORT/SMTP_PORT');
+  if (!smtpUser) missingVars.push('EMAIL_USER/SMTP_USER');
+  if (!smtpPass) missingVars.push('EMAIL_PASSWORD/SMTP_PASS');
+  if (!smtpFrom) missingVars.push('EMAIL_FROM/SMTP_FROM');
 
   if (missingVars.length > 0) {
     missingVars.forEach((varName) => {
@@ -39,9 +41,6 @@ export async function sendPasswordResetEmail({ to, token, name }) {
     const errorMsg = `SMTP credentials (${missingVars.join(', ')}) are missing in .env`;
     return { success: false, error: errorMsg, resetUrl, deliveredViaSmtp: false };
   }
-
-  const portNum = Number(smtpPort);
-  const isSecure = process.env.EMAIL_SECURE === 'true' || portNum === 465;
 
   console.log(`[Email Config] EMAIL_HOST configured:`, !!smtpHost);
   console.log(`[Email Config] EMAIL_USER configured:`, !!smtpUser);

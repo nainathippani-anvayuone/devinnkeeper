@@ -22,7 +22,7 @@ function ResetPasswordForm() {
         <p style={{ fontSize: '14px', color: '#64748b', marginBottom: '20px' }}>
           This link is invalid or incomplete. Please request a new password reset link.
         </p>
-        <Link href="/forgot-password" style={{ color: '#2f6c85', fontWeight: 'bold', textDecoration: 'none' }}>
+        <Link href="/forgot-password" style={{ color: '#6b4f34', fontWeight: 'bold', textDecoration: 'none' }}>
           Request a new link &rarr;
         </Link>
       </div>
@@ -110,12 +110,12 @@ function ResetPasswordForm() {
       <button
         type="submit"
         disabled={loading}
-        style={{ width: '100%', padding: '12px', borderRadius: '12px', background: '#2f6c85', color: '#fff', fontSize: '15px', fontWeight: '600', border: 'none', cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1 }}
+        style={{ width: '100%', padding: '12px', borderRadius: '12px', background: '#6b4f34', color: '#fff', fontSize: '15px', fontWeight: '600', border: 'none', cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1 }}
       >
         {loading ? 'Resetting Password...' : 'Reset Password'}
       </button>
       <div style={{ marginTop: '20px', textAlign: 'center' }}>
-        <Link href="/login" style={{ color: '#2f6c85', fontSize: '14px', textDecoration: 'none' }}>
+        <Link href="/login" style={{ color: '#6b4f34', fontSize: '14px', textDecoration: 'none' }}>
           &larr; Back to Login
         </Link>
       </div>
@@ -126,11 +126,14 @@ function ResetPasswordForm() {
 export default function ResetPasswordPage() {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', background: 'radial-gradient(circle at top left, rgba(14,116,144,0.12), transparent 35%), linear-gradient(135deg, #fdfcf7 0%, #f5efe5 45%, #eef6f8 100%)', fontFamily: 'sans-serif' }}>
-      <div style={{ maxWidth: '480px', width: '100%', background: 'rgba(255,255,255,0.9)', borderRadius: '24px', padding: '36px', boxShadow: '0 20px 60px rgba(0,0,0,0.08)', border: '1px solid #e2e8f0' }}>
-        <h1 style={{ fontSize: '28px', fontWeight: 'bold', color: '#0f172a', margin: '0 0 8px 0', textAlign: 'center' }}>Reset Password</h1>
-        <p style={{ fontSize: '14px', color: '#64748b', textAlign: 'center', margin: '0 0 24px 0' }}>
-          Choose a new password for your InnKeeper account.
-        </p>
+      <div style={{ maxWidth: '480px', width: '100%', background: 'rgba(255,255,255,0.9)', borderRadius: '24px', padding: '36px', boxShadow: '0 20px 60px rgba(63,42,27,0.10)', border: '1px solid #e9d8c3' }}>
+        <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+          <div style={{ width: '56px', height: '56px', margin: '0 auto 16px', borderRadius: '18px', background: '#f4eae0', color: '#6b4f34', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', boxShadow: 'inset 0 0 0 1px rgba(107,79,52,0.10)' }}>🔐</div>
+          <h1 style={{ fontSize: '28px', fontWeight: 'bold', color: '#2f241d', margin: '0 0 8px 0' }}>Reset Password</h1>
+          <p style={{ fontSize: '14px', color: '#5d493e', margin: 0 }}>
+            Choose a new password for your InnKeeper account.
+          </p>
+        </div>
         <Suspense fallback={<div>Loading...</div>}>
           <ResetPasswordForm />
         </Suspense>

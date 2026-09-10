@@ -309,7 +309,7 @@ export default function SignupPage() {
                     onChange={(e) => handleChange('email', e.target.value)}
                     onBlur={() => handleBlur('email')}
                     className="pl-10"
-                    placeholder="you@innkeeper.com"
+                    placeholder="example@gmail.com"
                     autoComplete="off"
                   />
                 </div>

@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
+import { useTheme } from "@/contexts/ThemeContext";
 
 // Sample Available Rooms List for Selection
 const AVAILABLE_ROOMS = [
@@ -83,6 +84,7 @@ import { useTranslation } from "react-i18next";
 export default function CheckInVerification() {
   const { t } = useTranslation();
   const qc = useQueryClient();
+  const { setTheme } = useTheme();
   const [reservations, setReservations] = useState<any[]>([]);
   const [selectedResId, setSelectedResId] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState<string>("");
@@ -183,9 +185,14 @@ export default function CheckInVerification() {
     const params = new URLSearchParams(window.location.search);
     const targetResId = params.get("resId") || params.get("reservationId");
     const checkInToken = params.get("token");
+
     if (checkInToken) {
+      setTheme("light");
+      localStorage.setItem("theme", "light");
+      document.documentElement.classList.remove("dark");
       sessionStorage.setItem("innkeeper_checkin_token", checkInToken);
     }
+
     if (targetResId && checkInToken) {
       api.get("/checkin/access", { params: { resId: targetResId, token: checkInToken } })
         .then((res) => {

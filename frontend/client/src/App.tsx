@@ -107,13 +107,13 @@ function PublicRoutes() {
       <Route path="/signup" component={SignupPage} />
       <Route path="/forgot-password" component={ForgotPasswordPage} />
       <Route path="/reset-password" component={ResetPasswordPage} />
+      <Route path="/checkin" component={CheckInVerification} />
       <Route path="/dashboard" component={ProtectedApp} />
       <Route path="/payments" component={ProtectedApp} />
       <Route path="/vehicles" component={ProtectedApp} />
       <Route path="/cash-ledger" component={ProtectedApp} />
       <Route path="/shift-audits" component={ProtectedApp} />
       <Route path="/reservations" component={ProtectedApp} />
-      <Route path="/checkin" component={ProtectedApp} />
       <Route path="/digital-key" component={ProtectedApp} />
       <Route path="/guests" component={ProtectedApp} />
       <Route path="/housekeeping" component={ProtectedApp} />
