@@ -1,6 +1,7 @@
 import { prisma } from '../utils/db.js';
 import { sendCheckInEmail } from '../utils/emailNotifier.js';
-import { createNotification, NotificationType, NotificationPriority } from '../utils/notificationService.js';
+import { broadcastRoomUpdate, broadcastApprovalUpdate } from '../utils/realtime.js';
+import { recordAuditLog, getUserPermissions, hasPermission } from '../services/rbacService.js';
 
 function paginate(data, page, limit) {
   const total = data.length;
@@ -198,6 +199,19 @@ export async function createReservation(req, res) {
       include: { guest: true }
     });
 
+    if (targetRoomId) {
+      try {
+        const roomStatus = isCheckedInStatus ? 'occupied' : 'reserved';
+        await prisma.room.update({
+          where: { id: targetRoomId },
+          data: { status: roomStatus, availability: false, last_updated: new Date() }
+        });
+        broadcastRoomUpdate({ roomId: targetRoomId, status: roomStatus, availability: false, action: 'reserved' });
+      } catch (err) {
+        console.warn('Could not update room on reservation create:', err.message);
+      }
+    }
+
     const isCheckedInStatus = (status || '').toLowerCase().includes('check');
     if (isCheckedInStatus && Number(paidAmount) > 0) {
       const gName = reservation.guest ? `${reservation.guest.firstName} ${reservation.guest.lastName}`.trim() : 'Guest';
@@ -250,26 +264,6 @@ export async function createReservation(req, res) {
     }
 
     res.status(201).json(reservation);
-
-    // Fire NEW_RESERVATION notification (after response sent so client isn't delayed)
-    try {
-      const gName = reservation.guest
-        ? `${reservation.guest.firstName} ${reservation.guest.lastName}`.trim()
-        : (firstName && lastName ? `${firstName} ${lastName}`.trim() : 'Guest');
-      const roomLabel = targetRoomId ? `Room ${targetRoomId}` : '';
-      await createNotification({
-        type: NotificationType.NEW_RESERVATION,
-        title: 'New Reservation',
-        message: `New reservation for ${gName}${roomLabel ? ` – ${roomLabel}` : ''}`,
-        priority: NotificationPriority.NORMAL,
-        guestId: reservation.guestId,
-        reservationId: reservation.id,
-        roomId: reservation.roomId,
-        metadata: { guestName: gName, roomId: reservation.roomId, reservationId: reservation.id },
-      });
-    } catch (notifErr) {
-      console.error('[reservationController] NEW_RESERVATION notification failed:', notifErr.message);
-    }
   } catch (err) {
     console.error('createReservation error:', err);
     res.status(500).json({ error: 'An internal error occurred while processing your request.' });
@@ -285,6 +279,15 @@ export async function updateReservation(req, res) {
     for (const field of ALLOWED_RESERVATION_FIELDS) {
       if (field in req.body) {
         updateData[field] = req.body[field];
+      }
+    }
+
+    if (updateData.status === 'cancelled') {
+      const userPermissions = req.userPermissions || await getUserPermissions(req.user);
+      if (!hasPermission(userPermissions, 'reservations.cancel')) {
+        return res.status(403).json({
+          error: 'Managers and Receptionists cannot cancel rooms directly. Please submit a cancellation request to the Admin.'
+        });
       }
     }
 
@@ -365,8 +368,9 @@ export async function updateReservation(req, res) {
       try {
         await prisma.room.update({
           where: { id: reservation.roomId },
-          data: { status: 'dirty', availability: true }
+          data: { status: 'dirty', availability: true, last_updated: new Date() }
         });
+        broadcastRoomUpdate({ roomId: reservation.roomId, status: 'dirty', availability: true, action: 'checkout' });
       } catch (rErr) {
         console.log('Room checkout status update note:', rErr.message);
       }
@@ -374,10 +378,21 @@ export async function updateReservation(req, res) {
       try {
         await prisma.room.update({
           where: { id: reservation.roomId },
-          data: { status: 'occupied', availability: false }
+          data: { status: 'occupied', availability: false, last_updated: new Date() }
         });
+        broadcastRoomUpdate({ roomId: reservation.roomId, status: 'occupied', availability: false, action: 'checkin' });
       } catch (rErr) {
         console.log('Room checkin status update note:', rErr.message);
+      }
+    } else if (updateData.status === 'cancelled' && reservation.roomId) {
+      try {
+        await prisma.room.update({
+          where: { id: reservation.roomId },
+          data: { status: 'vacant', availability: true, last_updated: new Date() }
+        });
+        broadcastRoomUpdate({ roomId: reservation.roomId, status: 'vacant', availability: true, action: 'cancelled' });
+      } catch (rErr) {
+        console.log('Room cancel status update note:', rErr.message);
       }
     }
 
@@ -407,72 +422,231 @@ export async function updateReservation(req, res) {
     }
 
     res.json(reservation);
-
-    // Fire notifications based on status change
-    try {
-      const gName = reservation.guest
-        ? `${reservation.guest.firstName} ${reservation.guest.lastName}`.trim()
-        : 'Guest';
-      const roomObj = reservation.roomId ? await prisma.room.findUnique({ where: { id: reservation.roomId } }) : null;
-      const roomLabel = roomObj ? `Room ${roomObj.room_number}` : (reservation.roomId ? `Room ${reservation.roomId}` : 'the hotel');
-
-      if (updateData.status === 'checked_out') {
-        await createNotification({
-          type: NotificationType.GUEST_CHECKED_OUT,
-          title: 'Guest Checked Out',
-          message: `${gName} has checked out of ${roomLabel}`,
-          priority: NotificationPriority.NORMAL,
-          guestId: reservation.guestId,
-          reservationId: reservation.id,
-          roomId: reservation.roomId,
-          metadata: { guestName: gName, roomId: reservation.roomId, reservationId: reservation.id },
-        });
-        // Room is now dirty after checkout
-        await createNotification({
-          type: NotificationType.ROOM_DIRTY,
-          title: 'Room Requires Cleaning',
-          message: `${roomLabel} is dirty and requires housekeeping after checkout`,
-          priority: NotificationPriority.NORMAL,
-          roomId: reservation.roomId,
-          metadata: { roomId: reservation.roomId, roomNumber: roomObj?.room_number },
-        });
-      } else if (updateData.status === 'checked_in') {
-        await createNotification({
-          type: NotificationType.GUEST_CHECKED_IN,
-          title: 'Guest Checked In',
-          message: `${gName} has checked into ${roomLabel}`,
-          priority: NotificationPriority.NORMAL,
-          guestId: reservation.guestId,
-          reservationId: reservation.id,
-          roomId: reservation.roomId,
-          metadata: { guestName: gName, roomId: reservation.roomId, reservationId: reservation.id },
-        });
-      } else if (updateData.status === 'cancelled') {
-        await createNotification({
-          type: NotificationType.RESERVATION_CANCELLED,
-          title: 'Reservation Cancelled',
-          message: `Reservation for ${gName} has been cancelled`,
-          priority: NotificationPriority.HIGH,
-          guestId: reservation.guestId,
-          reservationId: reservation.id,
-          roomId: reservation.roomId,
-          metadata: { guestName: gName, roomId: reservation.roomId, reservationId: reservation.id },
-        });
-      }
-    } catch (notifErr) {
-      console.error('[reservationController] update notification failed:', notifErr.message);
-    }
   } catch (err) {
     console.error('updateReservation error:', err);
     res.status(500).json({ error: 'An internal error occurred while processing your request.' });
   }
 }
 
+export async function cancelReservation(req, res) {
+  try {
+    const reservationId = Number(req.params.id);
+    const { reason } = req.body || {};
+
+    const reservation = await prisma.reservation.findUnique({
+      where: { id: reservationId },
+      include: { guest: true, room: true },
+    });
+
+    if (!reservation) {
+      return res.status(404).json({ success: false, message: 'Reservation not found' });
+    }
+
+    const userPermissions = req.userPermissions || await getUserPermissions(req.user);
+
+    // If user does NOT have direct cancel permission, check for request permission (Manager or Receptionist)
+    if (!hasPermission(userPermissions, 'reservations.cancel')) {
+      if (hasPermission(userPermissions, 'reservations.cancel_request')) {
+        const requesterRole = (req.user?.role || '').toUpperCase() === 'MANAGER' ? 'Manager' : 'Receptionist';
+        const requesterTitle = req.user?.name ? `${req.user.name} (${requesterRole})` : (req.user?.email || requesterRole);
+
+        const approval = await prisma.approvalRequest.create({
+          data: {
+            type: 'cancellation',
+            referenceId: String(reservationId),
+            requestedBy: requesterTitle,
+            requestedById: req.user?.id || null,
+            reason: reason || `Cancellation requested by ${requesterRole}`,
+            status: 'pending',
+          },
+        });
+
+        await prisma.reservation.update({
+          where: { id: reservationId },
+          data: { status: 'cancellation_requested' },
+        });
+
+        await prisma.appNotification.create({
+          data: {
+            type: 'cancellation',
+            title: 'Reservation Cancellation Request',
+            message: `${requesterTitle} submitted a cancellation request for Reservation #${reservationId}. Reason: ${reason || 'Not specified'}`,
+            isRead: false,
+          },
+        }).catch(() => {});
+
+        broadcastApprovalUpdate({
+          type: 'cancellation',
+          referenceId: String(reservationId),
+          status: 'pending',
+          requestedBy: requesterTitle,
+          reason: reason || 'Not specified',
+        });
+
+        await recordAuditLog({
+          userId: req.user?.id,
+          userEmail: req.user?.email,
+          userName: req.user?.name,
+          action: 'CANCEL',
+          module: 'reservations',
+          details: `Requested cancellation for reservation #${reservationId} by ${requesterRole} - Sent to Admin for Approval. Reason: ${reason || 'Not specified'}`,
+          ipAddress: req.ip,
+        });
+
+        return res.status(200).json({
+          success: true,
+          requiresApproval: true,
+          message: 'Cancellation request submitted to Admin for approval.',
+          data: approval,
+        });
+      } else {
+        return res.status(403).json({
+          success: false,
+          message: 'You do not have permission to perform this action',
+        });
+      }
+    }
+
+    // Direct cancellation by authorized user (Admin or Manager)
+    const updated = await prisma.reservation.update({
+      where: { id: reservationId },
+      data: { status: 'cancelled' },
+      include: { guest: true, room: true },
+    });
+
+    if (updated.roomId) {
+      try {
+        await prisma.room.update({
+          where: { id: updated.roomId },
+          data: { status: 'clean', availability: true, last_updated: new Date() },
+        });
+        broadcastRoomUpdate({ roomId: updated.roomId, status: 'clean', availability: true, action: 'cancelled' });
+      } catch (err) {
+        console.error('Error freeing room upon cancellation:', err);
+      }
+    }
+
+    await recordAuditLog({
+      userId: req.user?.id,
+      userEmail: req.user?.email,
+      userName: req.user?.name,
+      action: 'CANCEL',
+      module: 'reservations',
+      details: `Directly cancelled reservation #${reservationId}. Reason: ${reason || 'Not specified'}`,
+      ipAddress: req.ip,
+    });
+
+    return res.json({
+      success: true,
+      message: 'Reservation cancelled successfully',
+      data: updated,
+    });
+  } catch (err) {
+    console.error('cancelReservation error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to cancel reservation' });
+  }
+}
+
 export async function deleteReservation(req, res) {
   try {
-    await prisma.reservation.delete({ where: { id: Number(req.params.id) } });
-    res.json({ success: true });
+    const reservationId = Number(req.params.id);
+    const existing = await prisma.reservation.findUnique({
+      where: { id: reservationId },
+      include: { guest: true },
+    });
+
+    if (!existing) {
+      return res.status(404).json({ success: false, message: 'Reservation not found' });
+    }
+
+    await prisma.reservation.delete({ where: { id: reservationId } });
+
+    await recordAuditLog({
+      userId: req.user?.id,
+      userEmail: req.user?.email,
+      userName: req.user?.name,
+      action: 'DELETE',
+      module: 'reservations',
+      details: `Deleted reservation #${reservationId} for guest ${existing.guest?.firstName || ''} ${existing.guest?.lastName || ''}`,
+      ipAddress: req.ip,
+    });
+
+    res.json({ success: true, message: 'Reservation deleted successfully' });
   } catch (err) {
+    console.error('deleteReservation error:', err);
     res.status(500).json({ error: 'An internal error occurred while processing your request.' });
   }
 }
+
+export async function requestReservationCancellation(req, res) {
+  try {
+    const reservationId = Number(req.params.id);
+    const { reason } = req.body || {};
+
+    const reservation = await prisma.reservation.findUnique({
+      where: { id: reservationId },
+      include: { guest: true, room: true },
+    });
+
+    if (!reservation) {
+      return res.status(404).json({ success: false, message: 'Reservation not found' });
+    }
+
+    const requesterRole = (req.user?.role || '').toUpperCase() === 'MANAGER' ? 'Manager' : 'Receptionist';
+    const requesterName = req.user?.name ? `${req.user.name} (${requesterRole})` : (req.user?.email || requesterRole);
+
+    const approval = await prisma.approvalRequest.create({
+      data: {
+        type: 'cancellation',
+        referenceId: String(reservationId),
+        requestedBy: requesterName,
+        requestedById: req.user?.id || null,
+        reason: reason || `Cancellation requested by ${requesterRole}`,
+        status: 'pending',
+      },
+    });
+
+    await prisma.reservation.update({
+      where: { id: reservationId },
+      data: { status: 'cancellation_requested' },
+    });
+
+    await prisma.appNotification.create({
+      data: {
+        type: 'cancellation',
+        title: 'Reservation Cancellation Request',
+        message: `${requesterName} submitted a cancellation request for Reservation #${reservationId}. Reason: ${reason || 'Not specified'}`,
+        isRead: false,
+      },
+    }).catch(() => {});
+
+    broadcastApprovalUpdate({
+      type: 'cancellation',
+      referenceId: String(reservationId),
+      status: 'pending',
+      requestedBy: requesterName,
+      reason: reason || 'Not specified',
+    });
+
+    await recordAuditLog({
+      userId: req.user?.id,
+      userEmail: req.user?.email,
+      userName: req.user?.name,
+      action: 'CANCEL',
+      module: 'reservations',
+      details: `Submitted cancellation request for Reservation #${reservationId} to Admin. Reason: ${reason || 'Not specified'}`,
+      ipAddress: req.ip,
+    });
+
+    return res.status(200).json({
+      success: true,
+      requiresApproval: true,
+      message: 'Cancellation request submitted to Admin for approval.',
+      data: approval,
+    });
+  } catch (err) {
+    console.error('requestReservationCancellation error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to submit cancellation request' });
+  }
+}
+

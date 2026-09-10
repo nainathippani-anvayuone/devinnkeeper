@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { z } from 'zod';
 import { sendPasswordResetEmail } from '../utils/email.js';
+import { normalizeRoleName } from '../services/rbacService.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'innkeeper-super-secret-key-change-in-production';
 const JWT_EXPIRES_IN = '7d';
@@ -16,6 +17,10 @@ const COOKIE_OPTS = {
   secure: process.env.NODE_ENV === 'production',
 };
 
+export function normalizeRole(role) {
+  return normalizeRoleName(role).toLowerCase();
+}
+
 function normalizeUser(user) {
   if (!user) return null;
 
@@ -24,6 +29,7 @@ function normalizeUser(user) {
     name: user.name,
     email: user.email,
     role: user.role,
+    permissions: [],
     createdAt: user.created_at ?? user.createdAt,
     updatedAt: user.updated_at ?? user.updatedAt,
   };
@@ -31,7 +37,7 @@ function normalizeUser(user) {
 
 function generateToken(user) {
   return jwt.sign(
-    { id: user.id, email: user.email, role: user.role },
+    { id: user.id, email: user.email, role: normalizeRole(user.role) },
     JWT_SECRET,
     { expiresIn: JWT_EXPIRES_IN }
   );
@@ -67,7 +73,7 @@ export async function signup(req, res) {
         email,
         phone: phone || null,
         password: hashed,
-        role: role || 'receptionist',
+        role: normalizeRole(role || 'receptionist'),
       },
     });
 
@@ -340,6 +346,74 @@ export async function resetPassword(req, res) {
       error: 'Internal server error.',
       message: 'Internal server error during password reset.',
     });
+  }
+}
+
+export async function listStaff(req, res) {
+  try {
+    const users = await prisma.user.findMany({
+      select: { id: true, name: true, email: true, phone: true, role: true, created_at: true, updated_at: true },
+      orderBy: { id: 'asc' },
+    });
+    return res.json(users.map((user) => ({ ...user, role: normalizeRole(user.role), createdAt: user.created_at, updatedAt: user.updated_at })));
+  } catch (err) {
+    console.error('listStaff error:', err);
+    return res.status(500).json({ error: 'Failed to retrieve staff list.' });
+  }
+}
+
+export async function createStaff(req, res) {
+  try {
+    const { name, email, phone, password, role } = req.body;
+    if (!name || !email || !password) return res.status(400).json({ error: 'Name, email, and password are required.' });
+    const normalizedEmail = String(email).trim().toLowerCase();
+    if (await prisma.user.findUnique({ where: { email: normalizedEmail } })) {
+      return res.status(409).json({ error: 'A staff member with this email already exists.' });
+    }
+    const assignedRole = normalizeRole(role || 'receptionist');
+    if (assignedRole === 'admin' && normalizeRole(req.user?.role) !== 'admin') {
+      return res.status(403).json({ message: 'You do not have permission to perform this action' });
+    }
+    const user = await prisma.user.create({
+      data: { name: String(name).trim(), email: normalizedEmail, phone: phone || null, password: await bcrypt.hash(password, 12), role: assignedRole },
+      select: { id: true, name: true, email: true, phone: true, role: true, created_at: true },
+    });
+    return res.status(201).json({ ...user, role: normalizeRole(user.role), createdAt: user.created_at });
+  } catch (err) {
+    console.error('createStaff error:', err);
+    return res.status(500).json({ error: 'Failed to create staff member.' });
+  }
+}
+
+export async function updateStaff(req, res) {
+  try {
+    const staffId = Number(req.params.id);
+    const { name, email, phone, role, password } = req.body;
+    if (role && Number(req.user?.id) === staffId) return res.status(400).json({ message: 'Users cannot modify their own role' });
+    if (role && normalizeRole(req.user?.role) !== 'admin') return res.status(403).json({ message: 'You do not have permission to perform this action' });
+    const data = {};
+    if (name) data.name = String(name).trim();
+    if (email) data.email = String(email).trim().toLowerCase();
+    if (phone !== undefined) data.phone = phone;
+    if (role) data.role = normalizeRole(role);
+    if (password) data.password = await bcrypt.hash(password, 12);
+    const user = await prisma.user.update({ where: { id: staffId }, data, select: { id: true, name: true, email: true, phone: true, role: true, created_at: true, updated_at: true } });
+    return res.json({ ...user, role: normalizeRole(user.role), createdAt: user.created_at, updatedAt: user.updated_at });
+  } catch (err) {
+    console.error('updateStaff error:', err);
+    return res.status(500).json({ error: 'Failed to update staff member.' });
+  }
+}
+
+export async function deleteStaff(req, res) {
+  try {
+    const staffId = Number(req.params.id);
+    if (Number(req.user?.id) === staffId) return res.status(400).json({ error: 'Cannot delete your own account.' });
+    await prisma.user.delete({ where: { id: staffId } });
+    return res.json({ success: true, message: 'Staff member deleted.' });
+  } catch (err) {
+    console.error('deleteStaff error:', err);
+    return res.status(500).json({ error: 'Failed to delete staff member.' });
   }
 }
 

@@ -2,7 +2,8 @@ import { useState, useMemo, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useStore } from "@/lib/store";
 import { apiClient } from "@/lib/api";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useAuthContext, ROLE_NAMES } from "@/contexts/AuthContext";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -23,9 +24,17 @@ import {
   Bell,
   BellOff,
   Sparkles,
-  Grid2x2,
   X,
-  ArrowRightLeft,
+  DoorOpen,
+  Users,
+  ShieldAlert,
+  ShieldCheck,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  ArrowRight,
+  ClipboardList,
+  Sparkle,
 } from "lucide-react";
 import MetricsDashboard from "@/components/dashboard/MetricsDashboard";
 import RoomStatusBoard from "@/components/dashboard/RoomStatusBoard";
@@ -33,15 +42,18 @@ import TapeChart from "@/components/dashboard/TapeChart";
 import ArrivalsDepartures from "@/components/dashboard/ArrivalsDepartures";
 import NotificationCenter from "@/components/dashboard/NotificationCenter";
 import RoomDetailsDrawer from "@/components/dashboard/RoomDetailsDrawer";
-
 import Module5Widgets from "@/components/dashboard/Module5Widgets";
 import { useTheme } from "@/contexts/ThemeContext";
 import { Skeleton } from "@/components/ui/skeleton";
-
 import { useTranslation } from "react-i18next";
+import { useLocation } from "wouter";
+import { toast } from "sonner";
 
 export default function Dashboard() {
   const { t, i18n } = useTranslation();
+  const [, setLocation] = useLocation();
+  const { currentRole, hasPermission } = useAuthContext();
+
   const {
     rooms, setRooms,
     filterType, setFilterType,
@@ -54,17 +66,11 @@ export default function Dashboard() {
     guests, setGuests,
     notifications, setNotifications,
     unreadCount, setUnreadCount,
-    showAIAssistant,
-    showAIPrediction,
-    showAIInsights,
-    showHeatmap,
   } = useStore();
 
   const { theme } = useTheme();
   const [showNotifications, setShowNotifications] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
-
-  // Fetch data via REST API
   const [isLoading, setIsLoading] = useState(false);
 
   const fetchAll = useCallback(async (isInitial = false) => {
@@ -127,7 +133,7 @@ export default function Dashboard() {
           const res = reservations.find((r: any) => r.roomId === room.id && r.guestId === g.id);
           return res;
         });
-        const matchesName = `${room.number} ${room.name}`.toLowerCase().includes(q);
+        const matchesName = `${room.number || room.room_number || ""} ${room.name || ""}`.toLowerCase().includes(q);
         const matchesGuest = guest ?
           `${(guest as any).firstName} ${(guest as any).lastName}`.toLowerCase().includes(q) :
           false;
@@ -140,7 +146,7 @@ export default function Dashboard() {
       const floorA = Number(a.floor) || 0;
       const floorB = Number(b.floor) || 0;
       if (floorA !== floorB) return floorA - floorB;
-      return String(a.number).localeCompare(String(b.number), undefined, { numeric: true });
+      return String(a.number || a.room_number || "").localeCompare(String(b.number || b.room_number || ""), undefined, { numeric: true });
     });
   }, [rooms, filterType, filterFloor, filterStatus, searchQuery, guests, reservations]);
 
@@ -152,7 +158,7 @@ export default function Dashboard() {
 
   const statusColors: Record<string, string> = {
     vacant: "bg-emerald-500",
-    occupied: "bg-[#8B6748]",
+    occupied: "bg-blue-500",
     dirty: "bg-amber-500",
     maintenance: "bg-red-500",
     reserved: "bg-purple-500",
@@ -181,37 +187,145 @@ export default function Dashboard() {
     }
   };
 
+  // Pending approval requests for Manager/Admin
+  const pendingApprovals = useMemo(() => {
+    return reservations.filter((r: any) => (r.status || "").toLowerCase() === "cancellation_requested");
+  }, [reservations]);
+
+  const handleReviewCancellation = async (reservationId: number, status: 'approved' | 'rejected') => {
+    try {
+      await apiClient.reservations.update(String(reservationId), {
+        status: status === 'approved' ? 'cancelled' : 'confirmed'
+      });
+      toast.success(`Cancellation ${status === 'approved' ? 'approved' : 'rejected'}`);
+      fetchAll(false);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "Failed to process cancellation request");
+    }
+  };
+
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 15 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, ease: "easeOut" }}
-      className="space-y-6"
-    >
-      <div className="rounded-[2rem] border border-[#E8DED2] bg-[#F8F4EE] p-5 shadow-[0_15px_40px_rgba(63,53,45,0.04)] backdrop-blur-xl">
+    <div className="space-y-6">
+      {/* Header Banner */}
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35, ease: "easeOut" }}
+        className="rounded-[2rem] border border-border bg-card/85 p-5 shadow-xs backdrop-blur-xl card-hover-lift"
+      >
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-[#8B6748]">
+            <div className="mb-2 flex items-center gap-2 text-sm font-medium text-sky-700 dark:text-sky-400">
               <Sparkles className="h-4 w-4" />
-              {t("dashboard.subtitle")}
+              <span>{t("dashboard.subtitle")}</span>
             </div>
-            <h1 className="text-2xl font-bold tracking-tight text-[#3F352D] font-serif">{t("dashboard.title")}</h1>
-            <p className="mt-1 text-sm text-[#6F6258]">
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">{t("dashboard.title")}</h1>
+            <p className="mt-1 text-xs sm:text-sm text-muted-foreground">
               {getDashboardLocaleDate()}
             </p>
           </div>
+
+          <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
+            {/* Role Quick Action Shortcuts */}
+            {currentRole === "receptionist" && (
+              <>
+                <Button size="sm" onClick={() => setLocation("/checkin")} className="rounded-xl font-bold text-xs bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 cursor-pointer">
+                  <ShieldCheck className="h-3.5 w-3.5" /> Check-In Guest
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => setLocation("/reservations")} className="rounded-xl font-bold text-xs gap-1.5 cursor-pointer">
+                  <Calendar className="h-3.5 w-3.5" /> Bookings
+                </Button>
+              </>
+            )}
+
+            {currentRole === "manager" && (
+              <>
+                <Button size="sm" onClick={() => setLocation("/housekeeping")} className="rounded-xl font-bold text-xs bg-primary text-primary-foreground gap-1.5 cursor-pointer">
+                  <Sparkles className="h-3.5 w-3.5" /> Housekeeping Tasks
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => setLocation("/shift-audits")} className="rounded-xl font-bold text-xs gap-1.5 cursor-pointer">
+                  <ClipboardList className="h-3.5 w-3.5" /> Shift Audits
+                </Button>
+              </>
+            )}
+
+            {currentRole === "admin" && (
+              <>
+                <Button size="sm" onClick={() => setLocation("/reservations")} className="rounded-xl font-bold text-xs bg-primary text-primary-foreground gap-1.5 cursor-pointer">
+                  <Calendar className="h-3.5 w-3.5" /> All Reservations
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => setLocation("/shift-audits")} className="rounded-xl font-bold text-xs gap-1.5 cursor-pointer">
+                  <ClipboardList className="h-3.5 w-3.5" /> Full Audit Reports
+                </Button>
+              </>
+            )}
+
+            <Button
+              variant="ghost"
+              size="icon"
+              className="relative rounded-2xl cursor-pointer"
+              onClick={() => setShowNotifications(!showNotifications)}
+            >
+              {unreadCount > 0 ? <Bell className="h-5 w-5" /> : <BellOff className="h-5 w-5" />}
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground">
+                  {unreadCount > 9 ? "9+" : unreadCount}
+                </span>
+              )}
+            </Button>
+          </div>
         </div>
-      </div>
+      </motion.div>
 
+      {/* Admin Pending Approvals Alert */}
+      {currentRole === "admin" && pendingApprovals.length > 0 && (
+        <Card className="border-amber-500/30 bg-amber-500/5 shadow-xs">
+          <CardContent className="p-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-500/20 text-amber-600 shrink-0">
+                  <Clock className="h-5 w-5" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-foreground">
+                    {pendingApprovals.length} Pending Cancellation Approval{pendingApprovals.length !== 1 ? "s" : ""}
+                  </h4>
+                  <p className="text-xs text-muted-foreground">
+                    Front Desk / Manager submitted cancellation request{pendingApprovals.length !== 1 ? "s" : ""} awaiting your approval.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button size="sm" variant="outline" onClick={() => setLocation("/reservations")} className="text-xs font-bold rounded-xl cursor-pointer">
+                  Review in Reservations
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
+      {/* Notification Center */}
+      <AnimatePresence>
+        {showNotifications && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+          >
+            <NotificationCenter onClose={() => setShowNotifications(false)} />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:grid-cols-4">
-          <TabsTrigger value="overview">{t("dashboard.overview")}</TabsTrigger>
-          <TabsTrigger value="tape-chart">{t("dashboard.tapeChart")}</TabsTrigger>
-          <TabsTrigger value="rooms">{t("dashboard.rooms")}</TabsTrigger>
-          <TabsTrigger value="arrivals">{t("dashboard.arrivals")}</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 lg:w-auto h-auto p-1 gap-1">
+          <TabsTrigger value="overview" className="py-2 text-xs sm:text-sm font-semibold rounded-xl cursor-pointer">{t("dashboard.overview")}</TabsTrigger>
+          <TabsTrigger value="tape-chart" className="py-2 text-xs sm:text-sm font-semibold rounded-xl cursor-pointer">{t("dashboard.tapeChart")}</TabsTrigger>
+          <TabsTrigger value="rooms" className="py-2 text-xs sm:text-sm font-semibold rounded-xl cursor-pointer">{t("dashboard.rooms")}</TabsTrigger>
+          <TabsTrigger value="arrivals" className="py-2 text-xs sm:text-sm font-semibold rounded-xl cursor-pointer">{t("dashboard.arrivals")}</TabsTrigger>
         </TabsList>
 
         {/* Overview Tab */}
@@ -234,44 +348,58 @@ export default function Dashboard() {
             </div>
           ) : (
             <>
-          {/* Metrics */}
-          <MetricsDashboard rooms={filteredRooms} reservations={reservations} />
+              {/* Metrics Dashboard tailored by authenticated role */}
+              <motion.div
+                initial={{ opacity: 0, y: 14 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: "-20px" }}
+                transition={{ duration: 0.35, ease: "easeOut" }}
+              >
+                <MetricsDashboard rooms={filteredRooms} reservations={reservations} role={currentRole} />
+              </motion.div>
 
-          {/* AI Panels Row */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            
-          </div>
+              {/* Module 5 Executive Financial Widgets (ADMIN ONLY) */}
+              {currentRole === "admin" && (
+                <motion.div
+                  initial={{ opacity: 0, y: 14 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, margin: "-20px" }}
+                  transition={{ duration: 0.35, ease: "easeOut" }}
+                >
+                  <Module5Widgets />
+                </motion.div>
+              )}
 
-          {/* AI Room Assignment */}
-          
-
-          {/* Module 5 widgets */}
-          <Module5Widgets />
-
-          {/* Room Status Board & Right-side Arrivals/Departures */}
-          <div className="grid grid-cols-1 2xl:grid-cols-4 gap-6">
-            <div className="2xl:col-span-3 min-w-0">
-              <RoomStatusBoard
-                rooms={filteredRooms as any}
-                onRoomClick={(data: any) => setSelectedRoom(data as any)}
-              />
-            </div>
-            <div className="2xl:col-span-1 min-w-0 space-y-4">
-              <ArrivalsDepartures rooms={rooms as any} reservations={reservations as any} guests={guests as any} />
-            </div>
-          </div>
+              {/* Live Room Status & Daily Schedule */}
+              <motion.div
+                initial={{ opacity: 0, y: 18 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: "-30px" }}
+                transition={{ duration: 0.4, ease: "easeOut" }}
+                className="grid grid-cols-1 2xl:grid-cols-4 gap-6 items-start"
+              >
+                <div className="2xl:col-span-3 min-w-0">
+                  <RoomStatusBoard
+                    rooms={filteredRooms as any}
+                    onRoomClick={(data: any) => setSelectedRoom(data as any)}
+                  />
+                </div>
+                <div className="2xl:col-span-1 space-y-4 min-w-0">
+                  <ArrivalsDepartures rooms={rooms as any} reservations={reservations as any} guests={guests as any} />
+                </div>
+              </motion.div>
             </>
           )}
         </TabsContent>
 
         {/* Tape Chart Tab */}
         <TabsContent value="tape-chart" className="mt-6">
-          <Card className="overflow-hidden border-slate-200/80 bg-white/80 shadow-[0_20px_60px_rgba(15,23,42,0.06)]">
+          <Card className="overflow-hidden border-border bg-card shadow-xs">
             <CardHeader className="pb-3">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-4">
                   <CardTitle className="flex items-center gap-2 text-lg font-semibold">
-                    <Calendar className="h-5 w-5 text-[#8B6748]" />
+                    <Calendar className="h-5 w-5 text-sky-600" />
                     {t("dashboard.tapeChart")}
                   </CardTitle>
                   <div className="flex items-center gap-2">
@@ -424,10 +552,6 @@ export default function Dashboard() {
         guest={selectedRoom?.guest ?? null}
         reservation={selectedRoom?.reservation ?? null}
       />
-
-      {/* AI Assistant */}
-     
-    </motion.div>
+    </div>
   );
 }
-

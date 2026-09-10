@@ -12,7 +12,8 @@ import { Form, FormItem, FormLabel, FormControl } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
-import { CalendarDays, Plus, Search, LogIn, LogOut, Trash2, Edit } from "lucide-react";
+import { CalendarDays, Plus, Search, LogIn, LogOut, Trash2, Edit, Ban, CheckCircle2, XCircle, AlertCircle } from "lucide-react";
+import { useAuthContext } from "@/contexts/AuthContext";
 
 import { useTranslation } from "react-i18next";
 
@@ -32,7 +33,7 @@ const COUNTRY_CODES = [
   { code: "DE", name: "Germany", flag: "🇩🇪", dialCode: "+49", digitsLength: 11, placeholder: "15123456789" },
 ];
 const STATUS_COLORS: Record<string, string> = {
-  confirmed: "bg-[#F3EDE4] text-[#8B6748] border border-[#C4A882]",
+  confirmed: "bg-blue-100 text-blue-700",
   checked_in: "bg-green-100 text-green-700",
   checked_out: "bg-slate-100 text-slate-600",
   cancelled: "bg-red-100 text-red-600",
@@ -55,13 +56,18 @@ import { DataTablePagination } from "@/components/ui/DataTablePagination";
 
 export default function ReservationsPage() {
   const { t } = useTranslation();
+  const { hasPermission, currentRole } = useAuthContext();
+  const [cancelingReservation, setCancelingReservation] = useState<any | null>(null);
+  const [cancelReason, setCancelReason] = useState("");
+  const [cancelSubmitting, setCancelSubmitting] = useState(false);
+
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [dialogOpen, setDialogOpen] = useState(false);
-const [selectedCountry, setSelectedCountry] = useState(COUNTRY_CODES[0]);
+  const [selectedCountry, setSelectedCountry] = useState(COUNTRY_CODES[0]);
   const qc = useQueryClient();
-    const [editing, setEditing] = useState<any | null>(null);
+  const [editing, setEditing] = useState<any | null>(null);
 
   const reservationsQ = useQuery({
     queryKey: ["reservations", page, pageSize, search],
@@ -164,6 +170,46 @@ const [selectedCountry, setSelectedCountry] = useState(COUNTRY_CODES[0]);
     },
   });
 
+  const handleCancelSubmit = async () => {
+    if (!cancelingReservation) return;
+    setCancelSubmitting(true);
+    try {
+      const res = await apiClient.reservations.cancel(cancelingReservation.id, { reason: cancelReason });
+      if (res.data?.requiresApproval) {
+        toast.info(res.data.message || "Cancellation request submitted to Admin for approval.");
+      } else {
+        toast.success("Reservation cancelled successfully");
+      }
+      setCancelingReservation(null);
+      setCancelReason("");
+      qc.invalidateQueries({ queryKey: ["reservations"] });
+      qc.invalidateQueries({ queryKey: ["rooms"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.response?.data?.error || "Failed to cancel reservation");
+    } finally {
+      setCancelSubmitting(false);
+    }
+  };
+
+  const handleReviewCancellation = async (reservationId: number, status: 'approved' | 'rejected') => {
+    try {
+      const approvalsRes = await apiClient.approvals.list({ status: 'pending', type: 'cancellation' });
+      const req = (approvalsRes.data?.data || []).find((a: any) => a.referenceId === String(reservationId));
+      if (req) {
+        await apiClient.approvals.review(req.id, { status });
+      } else {
+        await apiClient.reservations.update(String(reservationId), { status: status === 'approved' ? 'cancelled' : 'confirmed' });
+      }
+      toast.success(`Cancellation request ${status}`);
+      qc.invalidateQueries({ queryKey: ["reservations"] });
+      qc.invalidateQueries({ queryKey: ["rooms"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || `Failed to ${status} cancellation`);
+    }
+  };
+
   const handleSubmit = (values: any) => {
     const fn = values.firstName || form.getValues("firstName");
     const ln = values.lastName || form.getValues("lastName");
@@ -247,12 +293,12 @@ if (emailVal.trim() && !emailRegex.test(emailVal.trim())) {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold">{t("reservations.title")}</h1>
-          <p className="text-sm text-muted-foreground">{t("reservations.subtitle")}</p>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">{t("reservations.title")}</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground">{t("reservations.subtitle")}</p>
         </div>
-        <Button onClick={() => { setEditing(null); form.reset(); setDialogOpen(true); }} className="gap-2 cursor-pointer">
+        <Button onClick={() => { setEditing(null); form.reset(); setDialogOpen(true); }} className="gap-2 cursor-pointer w-full sm:w-auto">
           <Plus className="h-4 w-4" /> {t("reservations.newReservation")}
         </Button>
       </div>
@@ -260,9 +306,9 @@ if (emailVal.trim() && !emailRegex.test(emailVal.trim())) {
       <Card>
         <CardHeader>
           <div className="flex items-center gap-3">
-            <div className="relative flex-1 max-w-sm">
+            <div className="relative w-full sm:max-w-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input placeholder={t("reservations.searchPlaceholder")} className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
+              <Input placeholder={t("reservations.searchPlaceholder")} className="pl-9 w-full" value={search} onChange={e => setSearch(e.target.value)} />
             </div>
           </div>
         </CardHeader>
@@ -308,9 +354,14 @@ if (emailVal.trim() && !emailRegex.test(emailVal.trim())) {
                     <TableCell>{r.checkIn ? new Date(r.checkIn).toLocaleDateString() : "—"}</TableCell>
                     <TableCell>{r.checkOut ? new Date(r.checkOut).toLocaleDateString() : "—"}</TableCell>
                     <TableCell>
-                      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_COLORS[(r.status || '').toLowerCase()] ?? "bg-slate-100 text-slate-600"}`}>
+                      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                        (r.status || '').toLowerCase() === 'cancellation_requested'
+                          ? 'bg-amber-100 text-amber-800 border border-amber-300'
+                          : STATUS_COLORS[(r.status || '').toLowerCase()] ?? "bg-slate-100 text-slate-600"
+                      }`}>
                         {(() => {
                           const st = (r.status || '').toLowerCase();
+                          if (st === 'cancellation_requested') return 'Cancellation Requested';
                           if (st === 'checked_in' || st === 'checkedin') return t("reservations.checkedIn");
                           if (st === 'checked_out' || st === 'checkedout') return t("reservations.checkedOut");
                           if (st === 'confirmed') return t("reservations.confirmed");
@@ -325,37 +376,88 @@ if (emailVal.trim() && !emailRegex.test(emailVal.trim())) {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">
-                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0"
-                          onClick={() => {
-                            setEditing(r);
-                            const matchedRoom = (roomsQ.data ?? []).find(
-                              (rm: any) => String(rm.id) === String(r.roomId) || String(rm.number) === String(r.roomId) || String(rm.room_number) === String(r.roomId)
-                            );
-                            const effectiveRoomId = matchedRoom ? String(matchedRoom.id) : (r.roomId ? String(r.roomId) : "");
+                        {/* Edit Button */}
+                        {hasPermission('reservations.edit') && (
+                          <Button size="sm" variant="ghost" className="h-7 w-7 p-0" title="Edit Reservation"
+                            onClick={() => {
+                              setEditing(r);
+                              const matchedRoom = (roomsQ.data ?? []).find(
+                                (rm: any) => String(rm.id) === String(r.roomId) || String(rm.number) === String(r.roomId) || String(rm.room_number) === String(r.roomId)
+                              );
+                              const effectiveRoomId = matchedRoom ? String(matchedRoom.id) : (r.roomId ? String(r.roomId) : "");
 
-                            form.reset({
-                              guestId: r.guestId ? String(r.guestId) : "",
-                              firstName: r.guest?.firstName || "",
-                              lastName: r.guest?.lastName || "",
-                              email: r.guest?.email || "",
-                              phone: r.guest?.phone || "",
-                              roomId: effectiveRoomId,
-                              checkIn: r.checkIn ? new Date(r.checkIn).toISOString().split("T")[0] : "",
-                              checkOut: r.checkOut ? new Date(r.checkOut).toISOString().split("T")[0] : "",
-                              status: r.status ?? "confirmed",
-                              totalCharges: r.totalCharges ?? 0,
-                              paidAmount: r.paidAmount ?? 0,
-                              source: r.source ?? "Direct",
-                              notes: r.notes ?? "",
-                            });
-                            setDialogOpen(true);
-                          }}>
-                          <Edit className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive"
-                          onClick={() => { if (!window.confirm("Delete reservation?")) return; deleteM.mutate(r.id); }}>
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
+                              form.reset({
+                                guestId: r.guestId ? String(r.guestId) : "",
+                                firstName: r.guest?.firstName || "",
+                                lastName: r.guest?.lastName || "",
+                                email: r.guest?.email || "",
+                                phone: r.guest?.phone || "",
+                                roomId: effectiveRoomId,
+                                checkIn: r.checkIn ? new Date(r.checkIn).toISOString().split("T")[0] : "",
+                                checkOut: r.checkOut ? new Date(r.checkOut).toISOString().split("T")[0] : "",
+                                status: r.status ?? "confirmed",
+                                totalCharges: r.totalCharges ?? 0,
+                                paidAmount: r.paidAmount ?? 0,
+                                source: r.source ?? "Direct",
+                                notes: r.notes ?? "",
+                              });
+                              setDialogOpen(true);
+                            }}>
+                            <Edit className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+
+                        {/* Pending Cancellation Quick Approval for Manager/Admin */}
+                        {(r.status || '').toLowerCase() === 'cancellation_requested' && hasPermission('reservations.approve') && (
+                          <>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 w-7 p-0 text-emerald-600 hover:bg-emerald-500/10"
+                              title="Approve Cancellation"
+                              onClick={() => handleReviewCancellation(r.id, 'approved')}
+                            >
+                              <CheckCircle2 className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 w-7 p-0 text-rose-600 hover:bg-rose-500/10"
+                              title="Reject Cancellation"
+                              onClick={() => handleReviewCancellation(r.id, 'rejected')}
+                            >
+                              <XCircle className="h-4 w-4" />
+                            </Button>
+                          </>
+                        )}
+
+                        {/* Cancel / Request Cancellation Button */}
+                        {(r.status || '').toLowerCase() !== 'cancelled' &&
+                         (r.status || '').toLowerCase() !== 'checked_out' &&
+                         (r.status || '').toLowerCase() !== 'cancellation_requested' &&
+                         (hasPermission('reservations.cancel') || hasPermission('reservations.cancel_request')) && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 w-7 p-0 text-amber-600 hover:bg-amber-500/10"
+                            title={hasPermission('reservations.cancel') ? "Cancel Reservation (Direct)" : "Request Cancellation (Requires Admin Approval)"}
+                            onClick={() => {
+                              setCancelingReservation(r);
+                              setCancelReason("");
+                            }}
+                          >
+                            <Ban className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+
+                        {/* Delete Button (ADMIN ONLY) */}
+                        {hasPermission('reservations.delete') && (
+                          <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive hover:bg-destructive/10"
+                            title="Delete Historical Reservation (Admin only)"
+                            onClick={() => { if (!window.confirm("Permanently delete this reservation record?")) return; deleteM.mutate(r.id); }}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -411,7 +513,7 @@ if (emailVal.trim() && !emailRegex.test(emailVal.trim())) {
               {/* Guest Information Inputs */}
               <div className="space-y-2">
                 <FormLabel className="font-semibold text-slate-800">{t("reservations.guestInformation")}</FormLabel>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <FormItem>
                     <FormLabel className="text-xs font-medium text-slate-700">{t("reservations.firstNameRequired")}</FormLabel>
                     <FormControl>
@@ -492,7 +594,7 @@ className="h-10 min-w-0 flex-1 border-0 rounded-l-none pl-3 shadow-none focus-vi
               {/* Guest Vehicle Information */}
               <div className="space-y-2 pt-1 border-t">
                 <FormLabel className="font-semibold text-slate-800">{t("reservations.vehicleDetailsOptional")}</FormLabel>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <FormItem>
                     <FormLabel className="text-xs font-medium text-slate-700">{t("vehicles.licensePlate")}</FormLabel>
                     <FormControl>
@@ -524,7 +626,7 @@ className="h-10 min-w-0 flex-1 border-0 rounded-l-none pl-3 shadow-none focus-vi
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <FormItem>
                   <FormLabel className="font-semibold text-slate-800">{t("roomDrawer.type", "Room")}</FormLabel>
                   <FormControl>
@@ -573,7 +675,7 @@ className="h-10 min-w-0 flex-1 border-0 rounded-l-none pl-3 shadow-none focus-vi
                 </FormItem>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <FormItem>
                   <FormLabel className="font-semibold text-slate-800">{t("reservations.checkInLabel")}</FormLabel>
                   <FormControl>
@@ -596,11 +698,11 @@ className="h-10 min-w-0 flex-1 border-0 rounded-l-none pl-3 shadow-none focus-vi
                 </FormItem>
               </div>
 
-              <div className="flex gap-3 justify-end pt-4">
-                <Button type="button" variant="outline" className="h-11 rounded-2xl border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-medium px-6 shadow-2xs" onClick={() => setDialogOpen(false)}>
+              <div className="flex flex-col-reverse sm:flex-row gap-2.5 sm:gap-3 justify-end pt-4">
+                <Button type="button" variant="outline" className="h-11 rounded-2xl border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-medium px-6 shadow-2xs w-full sm:w-auto cursor-pointer" onClick={() => setDialogOpen(false)}>
                   {t("common.cancel")}
                 </Button>
-                <Button type="submit" className="h-11 rounded-2xl bg-[#8B6748] hover:bg-[#7A5A3C] text-white font-semibold px-6 shadow-md shadow-[#8B6748]/20" disabled={createM.isPending || updateM.isPending}>
+                <Button type="submit" className="h-11 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 shadow-md shadow-blue-500/20 w-full sm:w-auto cursor-pointer" disabled={createM.isPending || updateM.isPending}>
                   {createM.isPending || updateM.isPending ? t("common.saving") : t("reservations.saveReservationButton")}
                 </Button>
               </div>
@@ -608,6 +710,71 @@ className="h-10 min-w-0 flex-1 border-0 rounded-l-none pl-3 shadow-none focus-vi
           </Form>
         </DialogContent>
       </Dialog>
+
+      {/* Cancellation / Approval Request Modal */}
+      {cancelingReservation && (
+        <Dialog open={Boolean(cancelingReservation)} onOpenChange={() => setCancelingReservation(null)}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="text-lg font-bold flex items-center gap-2">
+                <Ban className="h-5 w-5 text-rose-600" />
+                {hasPermission('reservations.cancel')
+                  ? 'Confirm Direct Cancellation'
+                  : 'Request Cancellation (Admin Approval Required)'}
+              </DialogTitle>
+            </DialogHeader>
+
+            <div className="space-y-4 pt-2 text-sm">
+              {!hasPermission('reservations.cancel') && (
+                <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-amber-800 dark:text-amber-300 text-xs flex items-start gap-2">
+                  <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-bold">Cancellation requires Admin approval.</p>
+                    <p className="mt-0.5">Managers and Receptionists cannot cancel rooms directly. This action will submit a cancellation request to the Administrator for approval.</p>
+                  </div>
+                </div>
+              )}
+
+              <p className="text-muted-foreground text-xs">
+                Reservation #{cancelingReservation.id} for guest{" "}
+                <strong className="text-foreground">
+                  {cancelingReservation.guest ? `${cancelingReservation.guest.firstName} ${cancelingReservation.guest.lastName}` : "Guest"}
+                </strong>
+                {cancelingReservation.room?.room_number && ` in Room ${cancelingReservation.room.room_number}`}.
+              </p>
+
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground">Reason for Cancellation *</label>
+                <Input
+                  required
+                  placeholder="e.g. Guest family emergency / flight cancellation"
+                  value={cancelReason}
+                  onChange={(e) => setCancelReason(e.target.value)}
+                  className="mt-1"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="outline" size="sm" onClick={() => setCancelingReservation(null)}>
+                  Keep Reservation
+                </Button>
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  disabled={cancelSubmitting || !cancelReason.trim()}
+                  onClick={handleCancelSubmit}
+                >
+                  {cancelSubmitting
+                    ? 'Submitting...'
+                    : hasPermission('reservations.cancel')
+                    ? 'Confirm Cancellation'
+                    : 'Submit for Admin Approval'}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

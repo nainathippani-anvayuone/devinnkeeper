@@ -11,30 +11,59 @@ import Housekeeping from "@/pages/Housekeeping";
 import Maintenance from "@/pages/Maintenance";
 import CheckInVerification from "@/pages/CheckInVerification";
 import DigitalKeyPage from "@/pages/DigitalKeyPage";
+import LandingPage from "@/pages/LandingPage";
+import { NotificationsPage } from "@/pages/Notifications";
 import { Redirect, Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
-import { AuthProvider, useAuthContext } from "./contexts/AuthContext";
+import { AuthProvider, useAuthContext, AppRole, ROLE_NAMES } from "./contexts/AuthContext";
+import { NotificationProvider } from "./contexts/NotificationContext";
 import DashboardLayout from "./components/DashboardLayout";
 import Dashboard from "./pages/Dashboard";
-import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/auth/LoginPage";
 import SignupPage from "./pages/auth/SignupPage";
 import ForgotPasswordPage from "./pages/auth/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/auth/ResetPasswordPage";
+import { ShieldAlert } from "lucide-react";
 
-import { NotificationProvider } from "./contexts/NotificationContext";
-import { NotificationsPage } from "./pages/Notifications";
+export function RoleGuard({
+  allowedRoles,
+  children,
+}: {
+  allowedRoles: AppRole[];
+  children: React.ReactNode;
+}) {
+  const { currentRole } = useAuthContext();
+  if (allowedRoles.includes(currentRole)) {
+    return <>{children}</>;
+  }
+
+  return (
+    <div className="flex min-h-[65vh] flex-col items-center justify-center p-6 text-center">
+      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-3xl bg-rose-500/10 text-rose-600 shadow-xs">
+        <ShieldAlert className="h-8 w-8" />
+      </div>
+      <h2 className="text-2xl font-bold text-foreground">Access Restricted</h2>
+      <p className="mt-2 max-w-md text-sm text-muted-foreground">
+        This module is reserved for <strong>{allowedRoles.map(r => ROLE_NAMES[r]).join(" or ")}</strong>. Your active role is <strong className="text-foreground">{ROLE_NAMES[currentRole]}</strong>.
+      </p>
+      <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+        <a href="/" className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm hover:opacity-90">
+          Return to Dashboard
+        </a>
+      </div>
+    </div>
+  );
+}
 
 function ProtectedApp() {
   const { isAuthenticated, loading } = useAuthContext();
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-900 text-slate-200">
-        <div className="rounded-2xl border border-slate-700 bg-slate-800/80 px-6 py-5 shadow-lg backdrop-blur flex items-center gap-3">
-          <div className="h-5 w-5 animate-spin rounded-full border-2 border-[#B89572] border-t-transparent" />
-          <span>Preparing your workspace...</span>
+      <div className="flex min-h-screen items-center justify-center bg-slate-50 text-slate-600">
+        <div className="rounded-2xl border border-slate-200 bg-white/80 px-6 py-5 shadow-sm backdrop-blur">
+          Preparing your workspace...
         </div>
       </div>
     );
@@ -47,20 +76,24 @@ function ProtectedApp() {
   return (
     <DashboardLayout>
       <Switch>
-        <Route path={"/"} component={Dashboard} />
-        <Route path={"/dashboard"} component={Dashboard} />
-        <Route path={"/payments"} component={Payments} />
-        <Route path={"/vehicles"} component={Vehicles} />
-        <Route path={"/cash-ledger"} component={CashLedger} />
-        <Route path={"/shift-audits"} component={ShiftAudits} />
-        <Route path={"/reservations"} component={Reservations} />
-        <Route path={"/checkin"} component={CheckInVerification} />
-        <Route path={"/digital-key"} component={DigitalKeyPage} />
-        <Route path={"/guests"} component={Guests} />
-        <Route path={"/housekeeping"} component={Housekeeping} />
-        <Route path={"/maintenance"} component={Maintenance} />
-        <Route path={"/notifications"} component={NotificationsPage} />
-        <Route path={"/404"} component={NotFound} />
+        <Route path="/" component={Dashboard} />
+        <Route path="/dashboard" component={Dashboard} />
+        <Route path="/reservations" component={Reservations} />
+        <Route path="/checkin" component={CheckInVerification} />
+        <Route path="/digital-key" component={DigitalKeyPage} />
+        <Route path="/guests" component={Guests} />
+        <Route path="/payments" component={Payments} />
+        <Route path="/housekeeping" component={Housekeeping} />
+        <Route path="/maintenance" component={Maintenance} />
+        <Route path="/vehicles" component={Vehicles} />
+        <Route path="/cash-ledger" component={CashLedger} />
+        <Route path="/shift-audits">
+          <RoleGuard allowedRoles={["admin", "manager"]}>
+            <ShiftAudits />
+          </RoleGuard>
+        </Route>
+        <Route path="/notifications" component={NotificationsPage} />
+        <Route path="/404" component={NotFound} />
         <Route component={NotFound} />
       </Switch>
     </DashboardLayout>
@@ -71,10 +104,10 @@ function PublicRoutes() {
   return (
     <Switch>
       <Route path="/login" component={LoginPage} />
-      <Route path="/register" component={SignupPage} />
       <Route path="/signup" component={SignupPage} />
       <Route path="/forgot-password" component={ForgotPasswordPage} />
       <Route path="/reset-password" component={ResetPasswordPage} />
+      <Route path="/" component={LandingPage} />
       <Route path="/dashboard" component={ProtectedApp} />
       <Route path="/payments" component={ProtectedApp} />
       <Route path="/vehicles" component={ProtectedApp} />
@@ -87,7 +120,6 @@ function PublicRoutes() {
       <Route path="/housekeeping" component={ProtectedApp} />
       <Route path="/maintenance" component={ProtectedApp} />
       <Route path="/notifications" component={ProtectedApp} />
-      <Route path="/" component={LandingPage} />
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>
@@ -112,4 +144,3 @@ function App() {
 }
 
 export default App;
-

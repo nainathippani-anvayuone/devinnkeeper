@@ -32,6 +32,9 @@ import {
   Plus,
   Pencil,
   Trash2,
+  Calendar,
+  ArrowRight,
+  Lock,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
@@ -45,6 +48,7 @@ interface Room {
   rate: number;
   capacity: number;
   amenities: string | null;
+  image?: string | null;
   isAvailable?: number;
 }
 
@@ -55,7 +59,7 @@ interface RoomStatusBoardProps {
 
 const statusConfig: Record<string, { color: string; bg: string; border: string; key: string; dotColor: string; label?: string }> = {
   vacant: { color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/30", key: "vacant", dotColor: "#10b981", label: "Vacant" },
-  occupied: { color: "text-[#8B6748]", bg: "bg-[#F3EDE4]", border: "border-[#C4A882]", key: "occupied", dotColor: "#8B6748", label: "Occupied" },
+  occupied: { color: "text-blue-600 dark:text-blue-400", bg: "bg-blue-500/10", border: "border-blue-500/30", key: "occupied", dotColor: "#3b82f6", label: "Occupied" },
   dirty: { color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/30", key: "dirty", dotColor: "#f59e0b", label: "Dirty" },
   maintenance: { color: "text-red-600 dark:text-red-400", bg: "bg-red-500/10", border: "border-red-500/30", key: "maintenance", dotColor: "#ef4444", label: "Out of Order / Maintenance" },
   reserved: { color: "text-purple-600 dark:text-purple-400", bg: "bg-purple-500/10", border: "border-purple-500/30", key: "reserved", dotColor: "#a855f7", label: "Reserved" },
@@ -254,8 +258,8 @@ export default function RoomStatusBoard({ rooms, onRoomClick }: RoomStatusBoardP
   };
 
   const item = {
-    hidden: { opacity: 0, scale: 0.96 },
-    show: { opacity: 1, scale: 1 },
+    hidden: { opacity: 0, y: 14, scale: 0.97 },
+    show: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.24, ease: "easeOut" as const } },
   };
 
   const getStatusSubtext = (status: string) => {
@@ -281,22 +285,22 @@ export default function RoomStatusBoard({ rooms, onRoomClick }: RoomStatusBoardP
     <Card className="overflow-hidden border-border/70 shadow-xs">
       <CardHeader className="pb-4 border-b border-border/40">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <CardTitle className="text-lg font-bold flex items-center gap-2 text-foreground">
-              <Bed className="h-5 w-5 text-[#8B6748]" />
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            <CardTitle className="text-base sm:text-lg font-bold flex items-center gap-2 text-foreground">
+              <Bed className="h-4.5 w-4.5 sm:h-5 sm:w-5 text-sky-600 dark:text-sky-400" />
               {t("dashboard.roomStatusBoard")}
             </CardTitle>
-            <div className="flex items-center gap-1.5 rounded-full bg-[#F3EDE4] px-2.5 py-0.5 text-xs font-semibold text-[#8B6748] border border-[#C4A882]">
+            <div className="flex items-center gap-1.5 rounded-full bg-sky-50 dark:bg-sky-950/60 px-2.5 py-0.5 text-xs font-semibold text-sky-700 dark:text-sky-300 border border-sky-200/60 dark:border-sky-800/60">
               <Sparkles className="h-3 w-3" />
               {t("dashboard.roomsCount", { count: sortedRooms.length })}
             </div>
-            <Button size="sm" onClick={openAddRoom} className="h-7 rounded-lg bg-[#8B6748] hover:bg-[#7A5A3C] text-white text-xs font-semibold px-3">
+            <Button size="sm" onClick={openAddRoom} className="h-7 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-2.5 sm:px-3 cursor-pointer">
               <Plus className="h-3.5 w-3.5 mr-1" />
               Add Room
             </Button>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2.5">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
             {/* Sort Order Selector */}
             <div className="flex items-center gap-1.5 bg-muted/60 px-2.5 py-1 rounded-xl border border-border/60 text-xs">
               <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
@@ -310,9 +314,13 @@ export default function RoomStatusBoard({ rooms, onRoomClick }: RoomStatusBoardP
                 className="bg-transparent text-xs font-semibold text-foreground focus:outline-none cursor-pointer pr-1"
                 aria-label="Order rooms"
               >
-                <option value="floor-asc" className="bg-card text-foreground">Floor & Room (Default)</option>
+                <option value="floor-asc" className="bg-card text-foreground">Floor & Room (1 → 150)</option>
+                <option value="floor-desc" className="bg-card text-foreground">Floor & Room (150 → 1)</option>
+                <option value="room-asc" className="bg-card text-foreground">Room # (Low to High)</option>
+                <option value="room-desc" className="bg-card text-foreground">Room # (High to Low)</option>
                 <option value="rate-asc" className="bg-card text-foreground">Rate (Low to High)</option>
                 <option value="rate-desc" className="bg-card text-foreground">Rate (High to Low)</option>
+                <option value="status" className="bg-card text-foreground">Status (Vacant, Occupied...)</option>
               </select>
             </div>
 
@@ -360,7 +368,7 @@ export default function RoomStatusBoard({ rooms, onRoomClick }: RoomStatusBoardP
 
         {/* Floor Quick-Navigation Pills */}
         {allFloors.length > 1 && (
-          <div className="mt-3 flex items-center gap-1.5 overflow-x-auto pb-1 text-xs scrollbar-thin">
+          <div className="mt-3 flex items-center gap-1.5 overflow-x-auto pb-1.5 text-xs scroll-smooth [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
             <span className="text-muted-foreground font-semibold shrink-0 flex items-center gap-1 pr-1 text-[11px]">
               <Building2 className="h-3.5 w-3.5" /> Floor:
             </span>
@@ -369,7 +377,7 @@ export default function RoomStatusBoard({ rooms, onRoomClick }: RoomStatusBoardP
                 setSelectedFloor("all");
                 setPage(1);
               }}
-              className={`px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+              className={`px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap shrink-0 transition-all cursor-pointer ${
                 selectedFloor === "all"
                   ? "bg-primary text-primary-foreground shadow-2xs"
                   : "bg-muted/60 text-muted-foreground hover:text-foreground hover:bg-muted"
@@ -387,7 +395,7 @@ export default function RoomStatusBoard({ rooms, onRoomClick }: RoomStatusBoardP
                     setSelectedFloor(fl);
                     setPage(1);
                   }}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap shrink-0 transition-all cursor-pointer ${
                     isSelected
                       ? "bg-primary text-primary-foreground shadow-2xs"
                       : "bg-muted/60 text-muted-foreground hover:text-foreground hover:bg-muted"
@@ -456,7 +464,7 @@ export default function RoomStatusBoard({ rooms, onRoomClick }: RoomStatusBoardP
                         {vacantCount} {t("dashboard.vacant").toLowerCase()}
                       </span>
                       <span>•</span>
-                      <span className="text-[#8B6748] font-medium">
+                      <span className="text-blue-600 dark:text-blue-400 font-medium">
                         {occupiedCount} {t("dashboard.occupied").toLowerCase()}
                       </span>
                       {dirtyCount > 0 && (
@@ -495,9 +503,13 @@ export default function RoomStatusBoard({ rooms, onRoomClick }: RoomStatusBoardP
                         </thead>
                         <tbody className="divide-y divide-border/40">
                           {floorRooms.map((room) => {
-                            const sKey = String(room.status || "vacant").toLowerCase();
+                            const sKey = String(room.status || "vacant").toLowerCase().trim();
                             const config = statusConfig[sKey] || statusConfig.vacant;
                             const TypeIcon = getTypeIcon(room.type);
+                            const isOccupied = sKey === "occupied";
+                            const isDirty = sKey === "dirty";
+                            const isMaintenance = sKey === "maintenance" || sKey === "under_maintenance" || sKey === "out_of_service";
+                            const isReadyToBook = !isOccupied && !isDirty && !isMaintenance;
                             return (
                               <tr
                                 key={room.id}
@@ -506,10 +518,29 @@ export default function RoomStatusBoard({ rooms, onRoomClick }: RoomStatusBoardP
                               >
                                 <td className="px-4 py-2.5 font-bold text-foreground">
                                   <div className="flex items-center gap-2">
-                                    <div
-                                      className="h-2.5 w-2.5 rounded-full"
-                                      style={{ backgroundColor: config.dotColor }}
-                                    />
+                                    {(room.image || String(room.type).toLowerCase().includes("deluxe") || String(room.type).toLowerCase().includes("family") || String(room.type).toLowerCase().includes("premium") || String(room.type).toLowerCase().includes("standard") || String(room.type).toLowerCase().includes("suite")) ? (
+                                      <img
+                                        src={
+                                          room.image ||
+                                          (String(room.type).toLowerCase().includes("premium")
+                                            ? "/rooms/premium.png"
+                                            : String(room.type).toLowerCase().includes("family")
+                                            ? "/rooms/family.png"
+                                            : String(room.type).toLowerCase().includes("standard")
+                                            ? "/rooms/standard.png"
+                                            : String(room.type).toLowerCase().includes("suite")
+                                            ? "/rooms/suite.png"
+                                            : "/rooms/deluxe.png")
+                                        }
+                                        alt={String(room.type)}
+                                        className="h-10 w-10 aspect-square rounded-lg object-cover border border-border/80 shrink-0 shadow-2xs"
+                                      />
+                                    ) : (
+                                      <div
+                                        className="h-2.5 w-2.5 rounded-full shrink-0"
+                                        style={{ backgroundColor: config.dotColor }}
+                                      />
+                                    )}
                                     <span className="text-sm font-bold">{room.number}</span>
                                   </div>
                                 </td>
@@ -543,7 +574,51 @@ export default function RoomStatusBoard({ rooms, onRoomClick }: RoomStatusBoardP
                                   </div>
                                 </td>
                                 <td className="px-4 py-2.5 text-right">
-                                  <div className="flex items-center justify-end gap-1">
+                                  <div className="flex items-center justify-end gap-1.5">
+                                    {isReadyToBook ? (
+                                      <Button
+                                        size="sm"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          onRoomClick({ room: { ...room, bookImmediately: true } });
+                                        }}
+                                        className="h-7 px-2.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg shadow-2xs gap-1 cursor-pointer"
+                                        title={`Book Room ${room.number} Now`}
+                                      >
+                                        <Calendar className="h-3 w-3" />
+                                        Book
+                                      </Button>
+                                    ) : isOccupied ? (
+                                      <Button
+                                        size="sm"
+                                        disabled
+                                        className="h-7 px-2.5 text-xs bg-slate-100 dark:bg-slate-800/80 text-slate-400 dark:text-slate-500 font-medium rounded-lg border border-slate-200/80 dark:border-slate-700/60 opacity-60 cursor-not-allowed gap-1 select-none"
+                                        title={`Room ${room.number} is currently occupied`}
+                                      >
+                                        <Users className="h-3 w-3 opacity-70" />
+                                        Occupied
+                                      </Button>
+                                    ) : isDirty ? (
+                                      <Button
+                                        size="sm"
+                                        disabled
+                                        className="h-7 px-2.5 text-xs bg-amber-50 dark:bg-amber-950/20 text-amber-500/80 dark:text-amber-400/70 font-medium rounded-lg border border-amber-200/60 dark:border-amber-900/40 opacity-60 cursor-not-allowed gap-1 select-none"
+                                        title={`Room ${room.number} needs cleaning`}
+                                      >
+                                        <Sparkles className="h-3 w-3 opacity-70" />
+                                        Cleaning
+                                      </Button>
+                                    ) : (
+                                      <Button
+                                        size="sm"
+                                        disabled
+                                        className="h-7 px-2.5 text-xs bg-muted/60 text-muted-foreground/70 font-medium rounded-lg border border-border/50 opacity-60 cursor-not-allowed gap-1 select-none"
+                                        title={`Room ${room.number} is out of service`}
+                                      >
+                                        <Lock className="h-3 w-3 opacity-70" />
+                                        Unavailable
+                                      </Button>
+                                    )}
                                     <Button size="sm" variant="ghost" className="h-7 px-2 text-xs">
                                       <Eye className="h-3.5 w-3.5 mr-1" />
                                       View
@@ -572,27 +647,32 @@ export default function RoomStatusBoard({ rooms, onRoomClick }: RoomStatusBoardP
                     <motion.div
                       variants={container}
                       initial="hidden"
-                      animate="show"
+                      whileInView="show"
+                      viewport={{ once: true, margin: "-30px" }}
                       className={
                         viewMode === "compact"
-                          ? "grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-2 sm:gap-2.5"
-                          : "grid grid-cols-2 xs:grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-2.5 sm:gap-3.5"
+                          ? "grid grid-cols-2 min-[420px]:grid-cols-3 sm:grid-cols-4 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-5 min-[1800px]:grid-cols-6 gap-2 sm:gap-2.5"
+                          : "grid grid-cols-1 min-[360px]:grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 2xl:grid-cols-4 min-[1750px]:grid-cols-5 min-[2100px]:grid-cols-6 gap-3 sm:gap-3.5"
                       }
                     >
                       {floorRooms.map((room) => {
-                        const sKey = String(room.status || "vacant").toLowerCase();
+                        const sKey = String(room.status || "vacant").toLowerCase().trim();
                         const config = statusConfig[sKey] || statusConfig.vacant;
                         const roomTypeKey = String(room.type || "").toLowerCase();
                         const TypeIcon = getTypeIcon(room.type);
                         const statusInfo = getStatusSubtext(room.status);
                         const StatusIcon = statusInfo.icon;
+                        const isOccupied = sKey === "occupied";
+                        const isDirty = sKey === "dirty";
+                        const isMaintenance = sKey === "maintenance" || sKey === "under_maintenance" || sKey === "out_of_service";
+                        const isReadyToBook = !isOccupied && !isDirty && !isMaintenance;
 
                         return (
                           <motion.div
                             key={room.id}
                             variants={item}
-                            transition={{ duration: 0.18, ease: "easeOut" }}
-                            whileHover={{ scale: 1.02, y: -2 }}
+                            transition={{ duration: 0.2, ease: "easeOut" }}
+                            whileHover={{ scale: 1.025, y: -3 }}
                             whileTap={{ scale: 0.98 }}
                             onClick={() => onRoomClick({ room })}
                             draggable
@@ -602,7 +682,7 @@ export default function RoomStatusBoard({ rooms, onRoomClick }: RoomStatusBoardP
                             className={`relative rounded-2xl border bg-card/95 dark:bg-slate-900/90 shadow-2xs hover:shadow-md transition-all hover:-translate-y-0.5 ${
                               config.border
                             } group overflow-hidden flex flex-col justify-between cursor-pointer ${
-                              viewMode === "compact" ? "p-2.5 min-h-[105px]" : "p-3 sm:p-3.5 min-h-[128px]"
+                              viewMode === "compact" ? "p-2.5 min-h-[140px]" : "p-3 sm:p-3.5 min-h-[170px]"
                             }`}
                           >
                             {/* Status dot in top right */}
@@ -611,18 +691,30 @@ export default function RoomStatusBoard({ rooms, onRoomClick }: RoomStatusBoardP
                               style={{ backgroundColor: config.dotColor }}
                             />
 
-                            {/* Edit/Delete actions, shown on hover */}
-                            <div className="absolute top-1.5 left-1.5 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                            {/* Edit/Delete & Book actions, shown on hover */}
+                            <div className="absolute top-1.5 left-1.5 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                              {isReadyToBook && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onRoomClick({ room: { ...room, bookImmediately: true } });
+                                  }}
+                                  className="h-6 px-2 flex items-center gap-1 rounded-md bg-emerald-600 text-white font-bold text-[10px] shadow-xs hover:bg-emerald-700 transition-colors cursor-pointer"
+                                  title="Book this room"
+                                >
+                                  <Calendar className="h-2.5 w-2.5" /> Book
+                                </button>
+                              )}
                               <button
                                 onClick={(e) => { e.stopPropagation(); openEditRoom(room); }}
-                                className="h-6 w-6 flex items-center justify-center rounded-md bg-background/90 border border-border/60 text-muted-foreground hover:text-foreground"
+                                className="h-6 w-6 flex items-center justify-center rounded-md bg-background/90 border border-border/60 text-muted-foreground hover:text-foreground cursor-pointer"
                                 title="Edit room"
                               >
                                 <Pencil className="h-3 w-3" />
                               </button>
                               <button
                                 onClick={(e) => { e.stopPropagation(); handleDeleteRoom(room); }}
-                                className="h-6 w-6 flex items-center justify-center rounded-md bg-background/90 border border-border/60 text-destructive hover:text-destructive"
+                                className="h-6 w-6 flex items-center justify-center rounded-md bg-background/90 border border-border/60 text-destructive hover:text-destructive cursor-pointer"
                                 title="Delete room"
                               >
                                 <Trash2 className="h-3 w-3" />
@@ -651,35 +743,116 @@ export default function RoomStatusBoard({ rooms, onRoomClick }: RoomStatusBoardP
                               </div>
                             </div>
 
+                            {/* Deluxe, Family, Premium, Standard & Suite Room Square Image */}
+                            {(room.image || roomTypeKey.includes("deluxe") || roomTypeKey.includes("family") || roomTypeKey.includes("premium") || roomTypeKey.includes("standard") || roomTypeKey.includes("suite")) && (
+                              <div className={`relative w-full aspect-square rounded-xl overflow-hidden mb-2 border border-border/60 group-hover:border-primary/40 transition-colors shrink-0 ${
+                                viewMode === "compact" ? "max-h-24 sm:max-h-28" : "max-h-44 sm:max-h-48"
+                              }`}>
+                                <img
+                                  src={
+                                    room.image ||
+                                    (roomTypeKey.includes("premium")
+                                      ? "/rooms/premium.png"
+                                      : roomTypeKey.includes("family")
+                                      ? "/rooms/family.png"
+                                      : roomTypeKey.includes("standard")
+                                      ? "/rooms/standard.png"
+                                      : roomTypeKey.includes("suite")
+                                      ? "/rooms/suite.png"
+                                      : "/rooms/deluxe.png")
+                                  }
+                                  alt={`${roomTypeKey.includes("premium") ? "Premium" : roomTypeKey.includes("family") ? "Family" : roomTypeKey.includes("standard") ? "Standard" : roomTypeKey.includes("suite") ? "Suite" : "Deluxe"} Room`}
+                                  className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                                  loading="lazy"
+                                />
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+                                <span className="absolute bottom-1 right-1.5 px-1.5 py-0.5 rounded bg-black/60 backdrop-blur-xs text-[9px] font-bold text-white uppercase tracking-wider flex items-center gap-1">
+                                  <Sparkles className="h-2.5 w-2.5 text-amber-300" /> {roomTypeKey.includes("premium") ? "Premium" : roomTypeKey.includes("family") ? "Family" : roomTypeKey.includes("standard") ? "Standard" : roomTypeKey.includes("suite") ? "Suite" : "Deluxe"}
+                                </span>
+                              </div>
+                            )}
+
                             {/* Bottom Details */}
                             <div className="space-y-1.5 pt-1.5 border-t border-border/50">
-                              <div className="flex flex-wrap items-center justify-between gap-1 min-w-0">
+                              <div className="flex items-center justify-between gap-1 min-w-0">
                                 <Badge
-                                  className="text-[9px] sm:text-[10px] px-1 sm:px-1.5 py-0.5 font-semibold capitalize shrink-0 border-0 truncate max-w-[90px]"
+                                  className="text-[10px] sm:text-[11px] px-1.5 sm:px-2 py-0.5 font-semibold capitalize truncate max-w-[95px] sm:max-w-[110px] border-0"
                                   style={{
                                     backgroundColor: `${config.dotColor}18`,
                                     color: config.dotColor,
                                   }}
+                                  title={sKey === "maintenance" ? "Out of Order" : t(`dashboard.${config.key}`)}
                                 >
                                   {sKey === "maintenance" ? "Out of Order" : t(`dashboard.${config.key}`)}
                                 </Badge>
-                                <span className="text-xs sm:text-sm font-bold text-foreground shrink-0 whitespace-nowrap">
+                                <span className="text-xs sm:text-sm font-extrabold text-foreground shrink-0 tabular-nums whitespace-nowrap ml-auto">
                                   ₹{Number(room.rate).toLocaleString()}
                                 </span>
                               </div>
 
                               <div className="flex items-center justify-between text-[10px] sm:text-[11px] text-muted-foreground min-w-0 pt-0.5">
-                                <div className="flex items-center gap-1 shrink-0">
+                                <div className="flex items-center gap-1 shrink-0" title={`Capacity: ${room.capacity} guests`}>
                                   <Users className="h-3 w-3" />
                                   <span>{room.capacity}</span>
                                 </div>
                                 <div
-                                  className="flex items-center gap-0.5 font-medium truncate max-w-[95px]"
+                                  className="flex items-center gap-1 font-medium truncate min-w-0 ml-1"
                                   style={{ color: config.dotColor }}
+                                  title={statusInfo.label}
                                 >
                                   <StatusIcon className="h-3 w-3 shrink-0" />
-                                  <span className="truncate">{statusInfo.label}</span>
+                                  <span className="truncate text-[10px] sm:text-[11px]">{statusInfo.label}</span>
                                 </div>
+                              </div>
+
+                              {/* Persistent Booking Action: Book Room (Active Vibrant Green) or Occupied (Lighter Muted Button) */}
+                              <div className="pt-2 mt-1 border-t border-border/50">
+                                {isReadyToBook ? (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      onRoomClick({ room: { ...room, bookImmediately: true } });
+                                    }}
+                                    className="w-full py-1.5 px-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs hover:shadow-sm transition-all cursor-pointer group/btn"
+                                    title={`Book Room ${room.number} Now`}
+                                  >
+                                    <Calendar className="h-3.5 w-3.5 transition-transform group-hover/btn:scale-110" />
+                                    <span>Book Room</span>
+                                    <ArrowRight className="h-3 w-3 ml-auto transition-transform group-hover/btn:translate-x-0.5 opacity-80" />
+                                  </button>
+                                ) : isOccupied ? (
+                                  <button
+                                    type="button"
+                                    disabled
+                                    className="w-full py-1.5 px-2.5 rounded-xl bg-slate-100/90 dark:bg-slate-800/60 text-slate-400 dark:text-slate-500 border border-slate-200/70 dark:border-slate-700/50 font-medium text-xs flex items-center justify-center gap-1.5 cursor-not-allowed opacity-60 select-none"
+                                    title={`Room ${room.number} is currently occupied`}
+                                  >
+                                    <Users className="h-3.5 w-3.5 opacity-70 shrink-0" />
+                                    <span>Occupied</span>
+                                    <span className="ml-auto text-[10px] font-normal uppercase tracking-wider opacity-60">Unavailable</span>
+                                  </button>
+                                ) : isDirty ? (
+                                  <button
+                                    type="button"
+                                    disabled
+                                    className="w-full py-1.5 px-2.5 rounded-xl bg-amber-50/90 dark:bg-amber-950/20 text-amber-500/80 dark:text-amber-400/70 border border-amber-200/60 dark:border-amber-900/40 font-medium text-xs flex items-center justify-center gap-1.5 cursor-not-allowed opacity-60 select-none"
+                                    title={`Room ${room.number} needs cleaning before booking`}
+                                  >
+                                    <Sparkles className="h-3.5 w-3.5 opacity-70 shrink-0" />
+                                    <span>Needs Cleaning</span>
+                                  </button>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    disabled
+                                    className="w-full py-1.5 px-2.5 rounded-xl bg-muted/60 text-muted-foreground/70 border border-border/50 font-medium text-xs flex items-center justify-center gap-1.5 cursor-not-allowed opacity-60 select-none"
+                                    title={`Room ${room.number} is out of service`}
+                                  >
+                                    <Lock className="h-3.5 w-3.5 opacity-70 shrink-0" />
+                                    <span>Out of Service</span>
+                                  </button>
+                                )}
                               </div>
                             </div>
                           </motion.div>
@@ -775,7 +948,7 @@ export default function RoomStatusBoard({ rooms, onRoomClick }: RoomStatusBoardP
               </Button>
               <Button
                 type="submit"
-                className="h-11 rounded-2xl bg-[#8B6748] hover:bg-[#7A5A3C] text-white font-semibold px-6"
+                className="h-11 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6"
                 disabled={createRoomM.isPending || updateRoomM.isPending}
               >
                 {createRoomM.isPending || updateRoomM.isPending ? "Saving..." : editingRoom ? "Save Changes" : "Create Room"}

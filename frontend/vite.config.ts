@@ -10,6 +10,7 @@ export default defineConfig({
       '@shared': path.resolve(__dirname, '../backend/shared')
     }
   },
+  publicDir: path.resolve(__dirname, 'public'),
   server: {
     port: 5173,
     proxy: {

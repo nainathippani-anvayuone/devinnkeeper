@@ -11,9 +11,10 @@ import { Form, FormItem, FormLabel, FormControl } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
-import { Wrench, Plus, AlertTriangle, CheckCircle, Clock, Zap } from "lucide-react";
+import { Wrench, Plus, AlertTriangle, CheckCircle, Clock, Zap, FileText, ClipboardList } from "lucide-react";
 import confetti from "canvas-confetti";
 import { DataTablePagination } from "@/components/ui/DataTablePagination";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 function LiveStopwatch({ startTime, isPaused, accumulatedSeconds = 0 }: { startTime?: string | number; isPaused?: boolean; accumulatedSeconds?: number }) {
   const [seconds, setSeconds] = useState(accumulatedSeconds);
@@ -57,7 +58,7 @@ function normalizeList(data: any) {
 
 const PRIORITY_CONFIG: Record<string, { label: string; color: string; icon: any }> = {
   low:    { label: "Low",    color: "text-slate-500",  icon: Clock },
-  normal: { label: "Normal", color: "text-[#8B6748]",   icon: Wrench },
+  normal: { label: "Normal", color: "text-blue-600",   icon: Wrench },
   high:   { label: "High",   color: "text-amber-600",  icon: AlertTriangle },
   urgent: { label: "Urgent", color: "text-red-600",    icon: Zap },
 };
@@ -93,6 +94,7 @@ export default function MaintenancePage() {
   };
   const storeRooms = useStore((state) => state.rooms);
   const updateRoomStatus = useStore((state) => state.updateRoomStatus);
+  const [maintTab, setMaintTab] = useState<'repairs' | 'work_orders' | 'issues'>('repairs');
   const [filterPriority, setFilterPriority] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
   const [page, setPage] = useState(1);
@@ -218,9 +220,9 @@ export default function MaintenancePage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full sm:w-auto">
           <Select value={filterStatus} onValueChange={setFilterStatus}>
-            <SelectTrigger className="w-36"><SelectValue placeholder={t("dashboard.allStatus")} /></SelectTrigger>
+            <SelectTrigger className="w-full sm:w-36"><SelectValue placeholder={t("dashboard.allStatus")} /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">{t("dashboard.allStatus")}</SelectItem>
               <SelectItem value="open">{t("maintenance.open").toUpperCase()}</SelectItem>
@@ -229,161 +231,364 @@ export default function MaintenancePage() {
             </SelectContent>
           </Select>
 
-          <Button onClick={() => { form.reset(); setDialogOpen(true); }} className="gap-2 bg-[#8B6748] hover:bg-[#7A5A3C] text-white font-bold rounded-xl shadow-md cursor-pointer">
+          <Button onClick={() => { form.reset(); setDialogOpen(true); }} className="w-full sm:w-auto gap-2 bg-sky-600 hover:bg-sky-700 text-white font-bold rounded-xl shadow-md cursor-pointer">
             <Plus className="h-4 w-4" /> {t("maintenance.newTicket")}
           </Button>
         </div>
       </div>
 
-      {/* Technician Ticket Cards Grid / Empty State */}
-      {items.length === 0 ? (
-        <div className="rounded-3xl border border-dashed border-border bg-card/60 p-12 text-center space-y-3">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[#8B6748]/10 text-[#8B6748]">
-            <Wrench className="h-7 w-7" />
-          </div>
-          <h3 className="text-lg font-bold text-foreground">{t("maintenance.noActiveTickets")}</h3>
-          <p className="text-xs text-muted-foreground max-w-sm mx-auto">
-            {t("maintenance.allRoomsOperational")}
-          </p>
+      {/* Department Sub-Navigation: Repairs | Work Orders | Issues */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
+        <Tabs value={maintTab} onValueChange={(v) => setMaintTab(v as any)} className="w-full sm:w-auto">
+          <TabsList className="bg-card border border-border p-1 rounded-2xl grid grid-cols-3 h-auto shadow-2xs">
+            <TabsTrigger value="repairs" className="rounded-xl py-2 px-2 sm:px-4 gap-1.5 sm:gap-2 text-[11px] sm:text-sm font-bold data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              <Wrench className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-pink-500" />
+              <span>Repairs</span>
+            </TabsTrigger>
+            <TabsTrigger value="work_orders" className="rounded-xl py-2 px-2 sm:px-4 gap-1.5 sm:gap-2 text-[11px] sm:text-sm font-bold data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              <ClipboardList className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-amber-500" />
+              <span>Work Orders</span>
+            </TabsTrigger>
+            <TabsTrigger value="issues" className="rounded-xl py-2 px-2 sm:px-4 gap-1.5 sm:gap-2 text-[11px] sm:text-sm font-bold data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              <FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-sky-500" />
+              <span>Issues</span>
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-500/10 text-red-600 font-bold border border-red-500/20">
+            Open: {items.filter((t: any) => t.status === 'open').length}
+          </span>
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-600 font-bold border border-amber-500/20">
+            In Progress: {items.filter((t: any) => t.status === 'in-progress').length}
+          </span>
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-600 font-bold border border-emerald-500/20">
+            Resolved: {items.filter((t: any) => t.status === 'resolved').length}
+          </span>
         </div>
-      ) : (
-        <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5">
-          {(itemsPerPage === 0 ? items : items.slice((page - 1) * itemsPerPage, page * itemsPerPage)).map((ticket: any) => {
-            const roomObj = getRoomForTicket(ticket.roomId, roomsQ.data ?? []);
-            const roomLabel = roomObj?.number || roomObj?.room_number || String(ticket.roomId || "1004");
-            const priority = (ticket.priority || "MEDIUM").toUpperCase();
-            const isUrgent = priority === "URGENT" || priority === "HIGH";
+      </div>
 
-            return (
-              <div key={ticket.id} className="rounded-2xl border border-border/80 bg-card p-5 space-y-4 shadow-md flex flex-col justify-between">
-                <div className="space-y-3">
+      {/* Tab 1: Active Repairs */}
+      {maintTab === "repairs" && (
+        <>
+          {items.length === 0 ? (
+            <div className="rounded-3xl border border-dashed border-border bg-card/60 p-12 text-center space-y-3">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-sky-500/10 text-sky-600">
+                <Wrench className="h-7 w-7" />
+              </div>
+              <h3 className="text-lg font-bold text-foreground">{t("maintenance.noActiveTickets")}</h3>
+              <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+                {t("maintenance.allRoomsOperational")}
+              </p>
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5">
+              {(itemsPerPage === 0 ? items : items.slice((page - 1) * itemsPerPage, page * itemsPerPage)).map((ticket: any) => {
+                const roomObj = getRoomForTicket(ticket.roomId, roomsQ.data ?? []);
+                const roomLabel = roomObj?.number || roomObj?.room_number || String(ticket.roomId || "1004");
+                const priority = (ticket.priority || "MEDIUM").toUpperCase();
+                const isUrgent = priority === "URGENT" || priority === "HIGH";
+
+                return (
+                  <div key={ticket.id} className="rounded-2xl border border-border/80 bg-card p-5 space-y-4 shadow-md flex flex-col justify-between">
+                    <div className="space-y-3">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-mono font-bold text-pink-600 bg-pink-500/10 px-2 py-0.5 rounded border border-pink-500/20">
+                              TKT-2026-00{ticket.id}
+                            </span>
+                            <span className="text-xs text-muted-foreground font-semibold">{t("roomDrawer.roomNumber", { number: roomLabel })}</span>
+                          </div>
+                          <h3 className="text-base font-extrabold text-foreground mt-2">{getLocalizedIssue(ticket.issue) || t("maintenance.placeholderIssue")}</h3>
+                        </div>
+
+                        <span className={`px-2.5 py-0.5 rounded-md text-[10px] font-extrabold uppercase tracking-wider ${
+                          isUrgent ? "bg-red-600 text-white" : "bg-sky-600 text-white"
+                        }`}>
+                          {priority}
+                        </span>
+                      </div>
+
+                      <div className="p-3.5 rounded-xl bg-accent/40 text-xs text-muted-foreground leading-relaxed">
+                        {(!ticket.notes || ticket.notes === "AC unit / hardware requires servicing and filter replacement.") ? t("maintenance.defaultNotes") : ticket.notes}
+                      </div>
+
+                      <div className="flex items-center justify-between text-xs pt-1">
+                        <div>
+                          <span className="text-muted-foreground">{t("maintenance.reportedBy")} </span>
+                          <span className="font-bold text-foreground">{t("maintenance.housekeeperStaff")}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="border-t border-border pt-3 space-y-3">
+                      {ticket.status === "in-progress" && (
+                        <div className="flex items-center justify-between p-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs font-bold text-amber-700 dark:text-amber-300">
+                          <span className="flex items-center gap-1.5">
+                            <span className="h-2 w-2 rounded-full bg-amber-500 animate-ping"></span> {t("maintenance.liveRepairTimer")}
+                          </span>
+                          <LiveStopwatch startTime={ticket.repairStartedAt} isPaused={false} accumulatedSeconds={ticket.accumulatedSeconds || 0} />
+                        </div>
+                      )}
+                      {ticket.status === "paused" && (
+                        <div className="flex items-center justify-between p-2 rounded-xl bg-slate-500/10 border border-slate-500/20 text-xs font-bold text-slate-700 dark:text-slate-300">
+                          <span className="flex items-center gap-1.5">
+                            <span className="h-2 w-2 rounded-full bg-slate-500"></span> {t("maintenance.repairPaused")}
+                          </span>
+                          <LiveStopwatch startTime={ticket.repairStartedAt} isPaused={true} accumulatedSeconds={ticket.accumulatedSeconds || 0} />
+                        </div>
+                      )}
+
+                      <div className="flex gap-2">
+                        {ticket.status === "open" && (
+                          <Button
+                            onClick={() => {
+                              if (typeof ticket.id === "string" && ticket.id.startsWith("maint-")) {
+                                const numericRoomId = Number(ticket.id.replace("maint-", ""));
+                                apiClient.maintenance.create({
+                                  roomId: numericRoomId,
+                                  issue: ticket.issue,
+                                  priority: "high",
+                                  status: "in-progress",
+                                  repairStartedAt: new Date().toISOString(),
+                                }).then(() => {
+                                  qc.invalidateQueries({ queryKey: ["maintenance"] });
+                                  toast.success(t("maintenance.toastRepairStarted"));
+                                });
+                              } else {
+                                updateM.mutate({
+                                  id: ticket.id,
+                                  data: {
+                                    status: "in-progress",
+                                    repairStartedAt: new Date().toISOString(),
+                                  },
+                                });
+                              }
+                            }}
+                            className="flex-1 bg-sky-600 hover:bg-sky-700 text-white font-bold rounded-xl shadow-md py-2.5 cursor-pointer"
+                          >
+                            ▶ {t("maintenance.startRepair")}
+                          </Button>
+                        )}
+                        {ticket.status === "in-progress" && (
+                          <>
+                            <Button
+                              onClick={() => {
+                                const now = Date.now();
+                                const start = ticket.repairStartedAt ? new Date(ticket.repairStartedAt).getTime() : now;
+                                const elapsed = Math.max(0, Math.floor((now - start) / 1000));
+                                updateM.mutate({
+                                  id: ticket.id,
+                                  data: {
+                                    status: "paused",
+                                    accumulatedSeconds: (ticket.accumulatedSeconds || 0) + elapsed,
+                                  },
+                                });
+                              }}
+                              className="flex-1 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl shadow-md py-2.5 cursor-pointer"
+                            >
+                              ⏸ {t("maintenance.pause")}
+                            </Button>
+                            <Button
+                              onClick={() => {
+                                fireConfettiBlast();
+                                updateM.mutate({ id: ticket.id, data: { status: "resolved" } });
+                                if (ticket.roomId) {
+                                  updateRoomStatus(ticket.roomId, "vacant");
+                                  apiClient.rooms.update(String(ticket.roomId), { status: "vacant", isAvailable: true }).then(() => {
+                                    qc.invalidateQueries({ queryKey: ["rooms"] });
+                                    qc.invalidateQueries({ queryKey: ["dashboard"] });
+                                  });
+                                }
+                              }}
+                              className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-md py-2.5 cursor-pointer"
+                            >
+                              ✓ {t("maintenance.resolve")}
+                            </Button>
+                          </>
+                        )}
+                        {ticket.status === "paused" && (
+                          <>
+                            <Button
+                              onClick={() => {
+                                updateM.mutate({
+                                  id: ticket.id,
+                                  data: {
+                                    status: "in-progress",
+                                    repairStartedAt: new Date().toISOString(),
+                                  },
+                                });
+                              }}
+                              className="flex-1 bg-sky-600 hover:bg-sky-700 text-white font-bold rounded-xl shadow-md py-2.5 cursor-pointer"
+                            >
+                              ▶ {t("maintenance.resume")}
+                            </Button>
+                            <Button
+                              onClick={() => {
+                                fireConfettiBlast();
+                                updateM.mutate({ id: ticket.id, data: { status: "resolved" } });
+                                if (ticket.roomId) {
+                                  updateRoomStatus(ticket.roomId, "vacant");
+                                  apiClient.rooms.update(String(ticket.roomId), { status: "vacant", isAvailable: true }).then(() => {
+                                    qc.invalidateQueries({ queryKey: ["rooms"] });
+                                    qc.invalidateQueries({ queryKey: ["dashboard"] });
+                                  });
+                                }
+                              }}
+                              className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-md py-2.5 cursor-pointer"
+                            >
+                              ✓ {t("maintenance.resolve")}
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+              </div>
+
+              {/* Pagination Controls */}
+              <DataTablePagination
+                currentPage={page}
+                totalPages={itemsPerPage === 0 ? 1 : Math.ceil(items.length / itemsPerPage) || 1}
+                totalItems={items.length}
+                pageSize={itemsPerPage}
+                onPageChange={setPage}
+                onPageSizeChange={setItemsPerPage}
+                pageSizeOptions={[8, 16, 24, 0]}
+                itemName="tickets"
+              />
+            </>
+          )}
+        </>
+      )}
+
+      {/* Tab 2: Work Orders */}
+      {maintTab === "work_orders" && (
+        <div className="space-y-4">
+          <div className="rounded-2xl border border-border bg-card p-4 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h3 className="font-bold text-foreground">Maintenance Work Orders</h3>
+              <p className="text-xs text-muted-foreground">Formal work orders, assigned facility technicians, and scheduled resolution times</p>
+            </div>
+            <Button onClick={() => { form.reset(); setDialogOpen(true); }} className="gap-2 bg-primary text-primary-foreground font-bold rounded-xl shadow-md cursor-pointer">
+              <Plus className="h-4 w-4" /> Create Work Order
+            </Button>
+          </div>
+
+          <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-sm">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-muted/50 text-xs uppercase font-bold text-muted-foreground border-b border-border">
+                  <tr>
+                    <th className="p-3.5">Order ID</th>
+                    <th className="p-3.5">Target Room</th>
+                    <th className="p-3.5">Issue Description</th>
+                    <th className="p-3.5">Priority</th>
+                    <th className="p-3.5">Status</th>
+                    <th className="p-3.5 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {items.map((ticket: any) => {
+                    const roomObj = getRoomForTicket(ticket.roomId, roomsQ.data ?? []);
+                    const roomLabel = roomObj?.number || roomObj?.room_number || String(ticket.roomId || "1004");
+                    const priority = (ticket.priority || "MEDIUM").toUpperCase();
+                    const isUrgent = priority === "URGENT" || priority === "HIGH";
+
+                    return (
+                      <tr key={ticket.id} className="hover:bg-accent/40 transition-colors">
+                        <td className="p-3.5 font-mono text-xs font-bold text-pink-600">WO-{ticket.id}</td>
+                        <td className="p-3.5 font-bold text-foreground">Room #{roomLabel}</td>
+                        <td className="p-3.5 font-medium text-foreground max-w-sm truncate">
+                          {getLocalizedIssue(ticket.issue) || "Facility maintenance ticket"}
+                        </td>
+                        <td className="p-3.5">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold uppercase tracking-wider ${
+                            isUrgent ? "bg-red-600 text-white" : "bg-sky-600 text-white"
+                          }`}>
+                            {priority}
+                          </span>
+                        </td>
+                        <td className="p-3.5">
+                          <span className="px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider bg-accent text-foreground">
+                            {ticket.status || "open"}
+                          </span>
+                        </td>
+                        <td className="p-3.5 text-right">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              fireConfettiBlast();
+                              updateM.mutate({ id: ticket.id, data: { status: "resolved" } });
+                              if (ticket.roomId) {
+                                updateRoomStatus(ticket.roomId, "vacant");
+                                apiClient.rooms.update(String(ticket.roomId), { status: "vacant", isAvailable: true });
+                              }
+                            }}
+                            className="rounded-xl text-xs font-semibold h-8 cursor-pointer"
+                          >
+                            Mark Completed
+                          </Button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Tab 3: Issues Log */}
+      {maintTab === "issues" && (
+        <div className="space-y-4">
+          <div className="rounded-2xl border border-border bg-card p-4 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h3 className="font-bold text-foreground">Reported Facility & Room Issues</h3>
+              <p className="text-xs text-muted-foreground">Incident logs, repair notes, and housekeeping inspection reports</p>
+            </div>
+            <Button onClick={() => { form.reset(); setDialogOpen(true); }} className="gap-2 bg-primary text-primary-foreground font-bold rounded-xl shadow-md cursor-pointer">
+              <Plus className="h-4 w-4" /> Report Issue
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {items.map((ticket: any) => {
+              const roomObj = getRoomForTicket(ticket.roomId, roomsQ.data ?? []);
+              const roomLabel = roomObj?.number || roomObj?.room_number || String(ticket.roomId || "1004");
+              return (
+                <div key={ticket.id} className="rounded-2xl border border-border bg-card p-4 space-y-3 shadow-2xs hover:shadow-sm transition-all">
                   <div className="flex items-start justify-between">
                     <div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-mono font-bold text-pink-600 bg-pink-500/10 px-2 py-0.5 rounded border border-pink-500/20">
-                          TKT-2026-00{ticket.id}
-                        </span>
-                        <span className="text-xs text-muted-foreground font-semibold">{t("roomDrawer.roomNumber", { number: roomLabel })}</span>
-                      </div>
-                      <h3 className="text-base font-extrabold text-foreground mt-2">{getLocalizedIssue(ticket.issue) || t("maintenance.placeholderIssue")}</h3>
+                      <span className="text-xs font-mono font-bold text-pink-600 bg-pink-500/10 px-2 py-0.5 rounded border border-pink-500/20">
+                        ISSUE-#{ticket.id}
+                      </span>
+                      <h4 className="text-sm font-bold text-foreground mt-1.5">
+                        {getLocalizedIssue(ticket.issue) || "Reported maintenance issue"}
+                      </h4>
                     </div>
-
-                    <span className={`px-2.5 py-0.5 rounded-md text-[10px] font-extrabold uppercase tracking-wider ${
-                      isUrgent ? "bg-red-600 text-white" : "bg-[#8B6748] text-white"
-                    }`}>
-                      {priority}
-                    </span>
+                    <span className="text-xs font-bold text-muted-foreground">Room #{roomLabel}</span>
                   </div>
 
-                  <div className="p-3.5 rounded-xl bg-accent/40 text-xs text-muted-foreground leading-relaxed">
-                    {(!ticket.notes || ticket.notes === "AC unit / hardware requires servicing and filter replacement.") ? t("maintenance.defaultNotes") : ticket.notes}
-                  </div>
+                  <p className="text-xs text-muted-foreground leading-relaxed bg-accent/30 p-2.5 rounded-xl">
+                    {ticket.notes || "AC unit / hardware requires servicing and filter replacement."}
+                  </p>
 
-                  <div className="flex items-center justify-between text-xs pt-1">
-                    <div>
-                      <span className="text-muted-foreground">{t("maintenance.reportedBy")} </span>
-                      <span className="font-bold text-foreground">{t("maintenance.housekeeperStaff")}</span>
-                    </div>
+                  <div className="flex items-center justify-between text-xs pt-1 border-t border-border/60">
+                    <span className="text-muted-foreground">Status: <strong className="text-foreground uppercase">{ticket.status || "open"}</strong></span>
+                    <span className="text-[11px] font-mono text-muted-foreground">{new Date(ticket.createdAt || Date.now()).toLocaleDateString()}</span>
                   </div>
                 </div>
-
-                <div className="border-t border-border pt-3 space-y-3">
-                  {ticket.status === "in-progress" && (
-                    <div className="flex items-center justify-between p-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs font-bold text-amber-700 dark:text-amber-300">
-                      <span className="flex items-center gap-1.5">
-                        <span className="h-2 w-2 rounded-full bg-amber-500 animate-ping"></span> {t("maintenance.liveRepairTimer")}
-                      </span>
-                      <LiveStopwatch startTime={ticket.repairStartedAt} isPaused={false} accumulatedSeconds={ticket.accumulatedSeconds || 0} />
-                    </div>
-                  )}
-                  {ticket.status === "paused" && (
-                    <div className="flex items-center justify-between p-2 rounded-xl bg-slate-500/10 border border-slate-500/20 text-xs font-bold text-slate-700 dark:text-slate-300">
-                      <span className="flex items-center gap-1.5">
-                        <span className="h-2 w-2 rounded-full bg-slate-500"></span> {t("maintenance.repairPaused")}
-                      </span>
-                      <LiveStopwatch startTime={ticket.repairStartedAt} isPaused={true} accumulatedSeconds={ticket.accumulatedSeconds || 0} />
-                    </div>
-                  )}
-
-                  <div className="flex gap-2">
-                    {ticket.status === "open" && (
-                      <Button
-                        onClick={() => {
-                          if (typeof ticket.id === "string" && ticket.id.startsWith("maint-")) {
-                            const numericRoomId = Number(ticket.id.replace("maint-", ""));
-                            apiClient.maintenance.create({
-                              roomId: numericRoomId,
-                              issue: ticket.issue,
-                              priority: "high",
-                              status: "in-progress",
-                              repairStartedAt: new Date().toISOString(),
-                              accumulatedSeconds: 0,
-                            }).then(() => {
-                              qc.invalidateQueries({ queryKey: ["maintenance"] });
-                              toast.success(t("maintenance.toastRepairStarted"));
-                            });
-                          } else {
-                            updateM.mutate({
-                              id: ticket.id,
-                              data: { status: "in-progress", repairStartedAt: new Date().toISOString(), accumulatedSeconds: 0 },
-                            });
-                          }
-                        }}
-                        className="flex-1 bg-[#8B6748] hover:bg-[#7A5A3C] text-white font-bold rounded-xl shadow-md py-2.5"
-                      >
-                        ▶ {t("maintenance.startRepair")}
-                      </Button>
-                    )}
-
-                    {(ticket.status === "in-progress" || ticket.status === "paused") && (
-                      <Button
-                        onClick={() => {
-                          fireConfettiBlast();
-                          if (typeof ticket.id === "string" && ticket.id.startsWith("maint-")) {
-                            const numericRoomId = Number(ticket.id.replace("maint-", ""));
-                            updateRoomStatus(numericRoomId, "vacant");
-                            apiClient.rooms.update(String(numericRoomId), { status: "vacant", isAvailable: true })
-                              .then(() => {
-                                qc.invalidateQueries({ queryKey: ["rooms"] });
-                                qc.invalidateQueries({ queryKey: ["maintenance"] });
-                                toast.success(t("maintenance.toastRepairCompleted"));
-                              });
-                          } else {
-                            updateM.mutate({ id: ticket.id, data: { status: "resolved" } });
-                            if (ticket.roomId) {
-                              updateRoomStatus(Number(ticket.roomId), "vacant");
-                              apiClient.rooms.update(String(ticket.roomId), { status: "vacant", isAvailable: true }).then(() => {
-                                qc.invalidateQueries({ queryKey: ["rooms"] });
-                              });
-                            }
-                          }
-                        }}
-                        className="flex-1 bg-[#8B6748] hover:bg-[#7A5A3C] text-white font-bold rounded-xl shadow-md py-2.5"
-                      >
-                        ✓ {t("maintenance.completeRepair")}
-                      </Button>
-                    )}
-
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+              );
+            })}
           </div>
-
-          {/* Pagination Controls */}
-          <DataTablePagination
-            currentPage={page}
-            totalPages={itemsPerPage === 0 ? 1 : Math.ceil(items.length / itemsPerPage) || 1}
-            totalItems={items.length}
-            pageSize={itemsPerPage}
-            onPageChange={setPage}
-            onPageSizeChange={setItemsPerPage}
-            pageSizeOptions={[8, 16, 24, 0]}
-            itemName="tickets"
-          />
-        </>
+        </div>
       )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -459,7 +664,7 @@ export default function MaintenancePage() {
                 <Button type="button" variant="outline" className="h-11 rounded-2xl border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-medium px-6 shadow-2xs" onClick={() => setDialogOpen(false)}>
                   {t("common.cancel")}
                 </Button>
-                <Button type="submit" className="h-11 rounded-2xl bg-[#8B6748] hover:bg-[#7A5A3C] text-white font-semibold px-6 shadow-md shadow-[#8B6748]/20" disabled={createM.isPending}>
+                <Button type="submit" className="h-11 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 shadow-md shadow-blue-500/20" disabled={createM.isPending}>
                   {createM.isPending ? t("common.submitting") : t("maintenance.reportIssue")}
                 </Button>
               </div>

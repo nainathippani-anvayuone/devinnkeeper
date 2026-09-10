@@ -7,7 +7,6 @@ import {
   ConciergeBell,
   CalendarCheck,
   KeyRound,
-  ChevronRight,
   UserCheck
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -20,10 +19,6 @@ export default function LandingPage() {
 
   const handleLoginClick = () => {
     setLocation("/login");
-  };
-
-  const handleRegisterClick = () => {
-    setLocation("/register");
   };
 
   return (
@@ -141,21 +136,6 @@ export default function LandingPage() {
               </Button>
             </motion.div>
 
-            {/* 2. Create Account Button (For New Users -> Opens /register) */}
-            <motion.div
-              variants={buttonHover}
-              whileHover="hover"
-              whileTap="tap"
-              className="w-full sm:w-auto"
-            >
-              <Button
-                onClick={handleRegisterClick}
-                className="w-full sm:w-auto rounded-full bg-[#E8DED2] px-9 py-6 text-base font-bold text-[#3F352D] border-2 border-[#8B6748] shadow-md hover:bg-[#DDD0C0] transition-all cursor-pointer"
-              >
-                Create Account
-                <ChevronRight className="ml-2 h-5 w-5 text-[#8B6748]" />
-              </Button>
-            </motion.div>
           </motion.div>
         </div>
 

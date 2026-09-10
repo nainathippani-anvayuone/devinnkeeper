@@ -89,11 +89,11 @@ export default function PaymentsPage() {
   return (
     <div className="space-y-6">
       <Card>
-        <CardHeader className="flex items-center justify-between">
-          <CardTitle>{t("payments.title")}</CardTitle>
-          <div className="flex items-center gap-2">
-            <Input placeholder={t("payments.searchPlaceholder")} value={search} onChange={(e:any)=>setSearch(e.target.value)} />
-            <Button variant="outline" onClick={handleExport} className="cursor-pointer">Export CSV</Button>
+        <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <CardTitle className="text-lg sm:text-xl font-bold">{t("payments.title")}</CardTitle>
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+            <Input placeholder={t("payments.searchPlaceholder")} value={search} onChange={(e:any)=>setSearch(e.target.value)} className="w-full sm:w-64" />
+            <Button variant="outline" onClick={handleExport} className="cursor-pointer shrink-0">Export CSV</Button>
           </div>
         </CardHeader>
         <CardContent>

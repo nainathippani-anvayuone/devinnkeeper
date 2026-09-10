@@ -101,11 +101,11 @@ export default function VehiclesPage(){
   return (
     <div className="space-y-6">
       <Card>
-        <CardHeader className="flex items-center justify-between">
-          <CardTitle>{t("vehicles.title")}</CardTitle>
-          <div className="flex items-center gap-2">
-            <Input placeholder={t("vehicles.searchPlaceholder")} value={search} onChange={(e:any)=>setSearch(e.target.value)} className="w-64" />
-            <Button variant="outline" onClick={handleExport} className="cursor-pointer">{t("vehicles.exportCsv")}</Button>
+        <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <CardTitle className="text-lg sm:text-xl font-bold">{t("vehicles.title")}</CardTitle>
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+            <Input placeholder={t("vehicles.searchPlaceholder")} value={search} onChange={(e:any)=>setSearch(e.target.value)} className="w-full sm:w-64" />
+            <Button variant="outline" onClick={handleExport} className="cursor-pointer shrink-0">{t("vehicles.exportCsv")}</Button>
           </div>
         </CardHeader>
         <CardContent>
@@ -184,7 +184,7 @@ export default function VehiclesPage(){
               }
               setDialogOpen(false);
             })} className="space-y-4 pt-2">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <FormItem>
                   <FormLabel className="font-semibold text-slate-800">{t("vehicles.brandMake")}</FormLabel>
                   <FormControl>
@@ -215,7 +215,7 @@ export default function VehiclesPage(){
                   </FormControl>
                 </FormItem>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <FormItem>
                   <FormLabel className="font-semibold text-slate-800">{t("vehicles.licensePlate")} *</FormLabel>
                   <FormControl>
