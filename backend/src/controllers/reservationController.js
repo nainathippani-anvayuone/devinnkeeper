@@ -120,6 +120,8 @@ export async function createReservation(req, res) {
       }
     }
 
+    const isCheckedInStatus = (status || '').toLowerCase().includes('check');
+
     if (firstName || lastName) {
       const fn = String(firstName || '').trim();
       const ln = String(lastName || '').trim();
@@ -212,7 +214,6 @@ export async function createReservation(req, res) {
       }
     }
 
-    const isCheckedInStatus = (status || '').toLowerCase().includes('check');
     if (isCheckedInStatus && Number(paidAmount) > 0) {
       const gName = reservation.guest ? `${reservation.guest.firstName} ${reservation.guest.lastName}`.trim() : 'Guest';
       await prisma.payment.create({

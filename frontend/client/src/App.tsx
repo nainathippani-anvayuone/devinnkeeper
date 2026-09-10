@@ -107,7 +107,6 @@ function PublicRoutes() {
       <Route path="/signup" component={SignupPage} />
       <Route path="/forgot-password" component={ForgotPasswordPage} />
       <Route path="/reset-password" component={ResetPasswordPage} />
-      <Route path="/" component={LandingPage} />
       <Route path="/dashboard" component={ProtectedApp} />
       <Route path="/payments" component={ProtectedApp} />
       <Route path="/vehicles" component={ProtectedApp} />
@@ -121,6 +120,7 @@ function PublicRoutes() {
       <Route path="/maintenance" component={ProtectedApp} />
       <Route path="/notifications" component={ProtectedApp} />
       <Route path="/404" component={NotFound} />
+      <Route path="/" component={LandingPage} />
       <Route component={NotFound} />
     </Switch>
   );

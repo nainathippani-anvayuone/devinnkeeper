@@ -49,7 +49,7 @@ export interface NavItem {
 }
 
 export const PREVIOUS_NAV_ITEMS: NavItem[] = [
-  { icon: LayoutDashboard, key: "dashboard", label: "Dashboard", path: "/", roles: ["admin", "manager", "receptionist"] },
+  { icon: LayoutDashboard, key: "dashboard", label: "Dashboard", path: "/dashboard", roles: ["admin", "manager", "receptionist"] },
   { icon: CalendarDays, key: "reservations", label: "Reservations", path: "/reservations", roles: ["admin", "manager", "receptionist"] },
   { icon: ShieldCheck, key: "checkin", label: "Check-In & Keys", path: "/checkin", roles: ["admin", "manager", "receptionist"] },
   { icon: Users, key: "guests", label: "Guests", path: "/guests", roles: ["admin", "manager", "receptionist"] },
