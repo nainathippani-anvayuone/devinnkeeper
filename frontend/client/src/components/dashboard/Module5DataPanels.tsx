@@ -81,13 +81,13 @@ function formatDate(value?: string | null) {
 function SectionShell({ title, subtitle, badge, children }: { title: string; subtitle: string; badge: string; children: React.ReactNode }) {
   return (
     <Card className="overflow-hidden border-slate-200/80 bg-white/80 shadow-[0_20px_60px_rgba(15,23,42,0.06)]">
-      <CardHeader className="border-b border-slate-100/80 bg-linear-to-r from-slate-50 to-sky-50/70">
+      <CardHeader className="border-b border-slate-100/80 bg-linear-to-r from-slate-50 to-[#F3EDE4]/60">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <CardTitle className="text-lg font-semibold text-slate-900">{title}</CardTitle>
             <p className="mt-1 text-sm text-slate-600">{subtitle}</p>
           </div>
-          <Badge variant="secondary" className="rounded-full border border-sky-200 bg-sky-50 text-sky-700">{badge}</Badge>
+          <Badge variant="secondary" className="rounded-full border border-[#C4A882] bg-[#F3EDE4] text-[#8B6748] font-semibold">{badge}</Badge>
         </div>
       </CardHeader>
       <CardContent className="p-0">{children}</CardContent>
@@ -302,7 +302,7 @@ export default function Module5DataPanels() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-4xl border border-slate-200/80 bg-white/75 p-5 shadow-[0_20px_60px_rgba(15,23,42,0.06)] backdrop-blur-xl">
         <div>
-          <p className="text-sm font-medium text-sky-700">Module 5 operations</p>
+          <p className="text-sm font-semibold text-[#8B6748]">Module 5 operations</p>
           <h2 className="text-2xl font-semibold tracking-tight text-slate-900">Payments, vehicles, cash ledger and shift audits</h2>
         </div>
         <div className="flex items-center gap-2 text-sm text-slate-600">

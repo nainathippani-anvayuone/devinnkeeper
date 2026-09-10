@@ -317,11 +317,26 @@ model Maintenance {
 }
 
 model AppNotification {
-  id        Int      @id @default(autoincrement())
-  type      String   @default("system")
-  title     String
-  message   String
-  isRead    Boolean  @default(false)
-  createdAt DateTime @default(now())
+  id            Int       @id @default(autoincrement())
+  type          String    @default("system")
+  title         String
+  message       String
+  priority      String    @default("NORMAL")
+  targetRoles   String?
+  recipientId   Int?
+  roomId        Int?
+  guestId       Int?
+  reservationId Int?
+  metadata      String?
+  readAt        DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([type])
+  @@index([readAt])
+  @@index([createdAt])
+  @@index([roomId])
+  @@index([reservationId])
+  @@index([recipientId])
 }
 

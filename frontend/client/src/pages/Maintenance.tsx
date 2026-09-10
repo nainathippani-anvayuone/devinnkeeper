@@ -57,7 +57,7 @@ function normalizeList(data: any) {
 
 const PRIORITY_CONFIG: Record<string, { label: string; color: string; icon: any }> = {
   low:    { label: "Low",    color: "text-slate-500",  icon: Clock },
-  normal: { label: "Normal", color: "text-blue-600",   icon: Wrench },
+  normal: { label: "Normal", color: "text-[#8B6748]",   icon: Wrench },
   high:   { label: "High",   color: "text-amber-600",  icon: AlertTriangle },
   urgent: { label: "Urgent", color: "text-red-600",    icon: Zap },
 };
@@ -229,7 +229,7 @@ export default function MaintenancePage() {
             </SelectContent>
           </Select>
 
-          <Button onClick={() => { form.reset(); setDialogOpen(true); }} className="gap-2 bg-sky-600 hover:bg-sky-700 text-white font-bold rounded-xl shadow-md cursor-pointer">
+          <Button onClick={() => { form.reset(); setDialogOpen(true); }} className="gap-2 bg-[#8B6748] hover:bg-[#7A5A3C] text-white font-bold rounded-xl shadow-md cursor-pointer">
             <Plus className="h-4 w-4" /> {t("maintenance.newTicket")}
           </Button>
         </div>
@@ -238,7 +238,7 @@ export default function MaintenancePage() {
       {/* Technician Ticket Cards Grid / Empty State */}
       {items.length === 0 ? (
         <div className="rounded-3xl border border-dashed border-border bg-card/60 p-12 text-center space-y-3">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-sky-500/10 text-sky-600">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[#8B6748]/10 text-[#8B6748]">
             <Wrench className="h-7 w-7" />
           </div>
           <h3 className="text-lg font-bold text-foreground">{t("maintenance.noActiveTickets")}</h3>
@@ -270,7 +270,7 @@ export default function MaintenancePage() {
                     </div>
 
                     <span className={`px-2.5 py-0.5 rounded-md text-[10px] font-extrabold uppercase tracking-wider ${
-                      isUrgent ? "bg-red-600 text-white" : "bg-sky-600 text-white"
+                      isUrgent ? "bg-red-600 text-white" : "bg-[#8B6748] text-white"
                     }`}>
                       {priority}
                     </span>
@@ -330,7 +330,7 @@ export default function MaintenancePage() {
                             });
                           }
                         }}
-                        className="flex-1 bg-sky-600 hover:bg-sky-700 text-white font-bold rounded-xl shadow-md py-2.5"
+                        className="flex-1 bg-[#8B6748] hover:bg-[#7A5A3C] text-white font-bold rounded-xl shadow-md py-2.5"
                       >
                         ▶ {t("maintenance.startRepair")}
                       </Button>
@@ -359,7 +359,7 @@ export default function MaintenancePage() {
                             }
                           }
                         }}
-                        className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-md py-2.5"
+                        className="flex-1 bg-[#8B6748] hover:bg-[#7A5A3C] text-white font-bold rounded-xl shadow-md py-2.5"
                       >
                         ✓ {t("maintenance.completeRepair")}
                       </Button>
@@ -459,7 +459,7 @@ export default function MaintenancePage() {
                 <Button type="button" variant="outline" className="h-11 rounded-2xl border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-medium px-6 shadow-2xs" onClick={() => setDialogOpen(false)}>
                   {t("common.cancel")}
                 </Button>
-                <Button type="submit" className="h-11 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 shadow-md shadow-blue-500/20" disabled={createM.isPending}>
+                <Button type="submit" className="h-11 rounded-2xl bg-[#8B6748] hover:bg-[#7A5A3C] text-white font-semibold px-6 shadow-md shadow-[#8B6748]/20" disabled={createM.isPending}>
                   {createM.isPending ? t("common.submitting") : t("maintenance.reportIssue")}
                 </Button>
               </div>

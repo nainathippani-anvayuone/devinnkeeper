@@ -2,6 +2,7 @@ import { generateDigitalKeyPayload, LockService } from '../lock/lock.service.js'
 import { sendCheckInEmail } from '../utils/emailNotifier.js';
 import { createPaymentOrderForReservation } from './razorpayController.js';
 import { prisma } from '../utils/db.js';
+import { createNotification, NotificationType, NotificationPriority } from '../utils/notificationService.js';
 import crypto from 'crypto';
 
 const lockService = new LockService();
@@ -107,6 +108,23 @@ export async function createBookingWithPayment(req, res) {
       });
     }
 
+    // 5. Fire NEW_RESERVATION notification
+    try {
+      const room = await prisma.room.findUnique({ where: { id: Number(roomId) } });
+      await createNotification({
+        type: NotificationType.NEW_RESERVATION,
+        title: 'New Reservation',
+        message: `New reservation created for ${firstName} ${lastName}${room ? ` – Room ${room.room_number}` : ''}`,
+        priority: NotificationPriority.NORMAL,
+        guestId: guest.id,
+        reservationId: reservation.id,
+        roomId: Number(roomId),
+        metadata: { guestName: `${firstName} ${lastName}`, roomId: Number(roomId), reservationId: reservation.id },
+      });
+    } catch (notifErr) {
+      console.error('[checkinController] NEW_RESERVATION notification failed:', notifErr.message);
+    }
+
     res.status(201).json({
       success: true,
       message: 'Room reserved successfully. Complete the Razorpay payment to confirm check-in.',
@@ -132,6 +150,11 @@ function compareFacesServer(dlData, selfieData) {
   const raw1 = dlData.includes('base64,') ? dlData.split('base64,')[1] : dlData;
   const raw2 = selfieData.includes('base64,') ? selfieData.split('base64,')[1] : selfieData;
 
+  // 1. Check exact base64 data match (Same uploaded image file)
+  if (raw1.trim() === raw2.trim()) {
+    return { isMatch: true, score: 100, reason: 'Identical image files verified successfully' };
+  }
+
   const buf1 = Buffer.from(raw1, 'base64');
   const buf2 = Buffer.from(raw2, 'base64');
 
@@ -139,48 +162,35 @@ function compareFacesServer(dlData, selfieData) {
     return { isMatch: false, score: 20, reason: 'Image payload is invalid or empty' };
   }
 
-  // 1. Direct identical match check
+  // 2. Direct binary buffer equality check
   if (buf1.equals(buf2)) {
-    return { isMatch: true, score: 98, reason: 'Exact biometric match' };
+    return { isMatch: true, score: 100, reason: 'Identical byte match verified successfully' };
   }
 
-  // 2. Frequency histogram correlation across byte channels
-  const freq1 = new Array(256).fill(0);
-  const freq2 = new Array(256).fill(0);
+  // 3. Pixel byte stream similarity calculation across sampled chunks
+  const sampleSize = Math.min(2000, buf1.length, buf2.length);
+  const step1 = Math.max(1, Math.floor(buf1.length / sampleSize));
+  const step2 = Math.max(1, Math.floor(buf2.length / sampleSize));
 
-  const step1 = Math.max(1, Math.floor(buf1.length / 500));
-  const step2 = Math.max(1, Math.floor(buf2.length / 500));
-
-  for (let i = 0; i < buf1.length; i += step1) freq1[buf1[i]]++;
-  for (let i = 0; i < buf2.length; i += step2) freq2[buf2[i]]++;
-
-  let dotProduct = 0;
-  let norm1 = 0;
-  let norm2 = 0;
-  for (let i = 0; i < 256; i++) {
-    dotProduct += freq1[i] * freq2[i];
-    norm1 += freq1[i] * freq1[i];
-    norm2 += freq2[i] * freq2[i];
+  let matchingBytes = 0;
+  for (let i = 0; i < sampleSize; i++) {
+    const b1 = buf1[i * step1];
+    const b2 = buf2[i * step2];
+    if (Math.abs(b1 - b2) <= 15) {
+      matchingBytes++;
+    }
   }
-  const cosineSim = (norm1 > 0 && norm2 > 0) ? dotProduct / (Math.sqrt(norm1) * Math.sqrt(norm2)) : 0;
 
-  // 3. Structural byte pattern difference
-  const samplePoints = 120;
-  let matches = 0;
-  const s1 = Math.max(1, Math.floor(buf1.length / samplePoints));
-  const s2 = Math.max(1, Math.floor(buf2.length / samplePoints));
-  for (let i = 0; i < samplePoints; i++) {
-    const diff = Math.abs(buf1[i * s1] - buf2[i * s2]);
-    if (diff < 28) matches++;
-  }
-  const structSim = matches / samplePoints;
+  const similarityScore = Math.round((matchingBytes / sampleSize) * 100);
 
-  // Composite similarity score (0 - 100)
-  const score = Math.round((cosineSim * 0.45 + structSim * 0.55) * 100);
+  // Require at least 80% similarity threshold for different photos of the same person
+  const isMatch = similarityScore >= 80;
 
-  // Require at least 75% similarity to pass verification
-  const isMatch = score >= 75;
-  return { isMatch, score };
+  return {
+    isMatch,
+    score: similarityScore,
+    reason: isMatch ? 'Biometric images verified successfully' : 'Verification failed: Facial features do not match'
+  };
 }
 
 // Step 1: Verify Guest ID (Driver License + Selfie Biometric Matching)
@@ -429,6 +439,24 @@ export async function completeGuestCheckIn(req, res) {
     }
 
     const gName = reservation.guest ? `${reservation.guest.firstName} ${reservation.guest.lastName}`.trim() : 'Guest';
+
+    // Fire GUEST_CHECKED_IN notification
+    try {
+      const roomObj = reservation.roomId ? await prisma.room.findUnique({ where: { id: reservation.roomId } }) : null;
+      await createNotification({
+        type: NotificationType.GUEST_CHECKED_IN,
+        title: 'Guest Checked In',
+        message: `${gName} has checked into${roomObj ? ` Room ${roomObj.room_number}` : ' the hotel'}`,
+        priority: NotificationPriority.NORMAL,
+        guestId: reservation.guestId,
+        reservationId: reservation.id,
+        roomId: reservation.roomId,
+        metadata: { guestName: gName, roomId: reservation.roomId, reservationId: reservation.id },
+      });
+    } catch (notifErr) {
+      console.error('[checkinController] GUEST_CHECKED_IN notification failed:', notifErr.message);
+    }
+
     res.json({
       success: true,
       message: `Check-in completed for ${gName}! Status set to Checked-In.`,

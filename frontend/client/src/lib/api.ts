@@ -92,8 +92,12 @@ export const apiClient = {
   },
   notifications: {
     list: (params?: any) => api.get("/notifications", { params }),
+    getUnreadCount: () => api.get("/notifications/unread-count"),
     create: (data: any) => api.post("/notifications", data),
     markRead: (ids?: number[]) => api.post("/notifications/mark-read", { ids }),
+    markOneRead: (id: number) => api.patch(`/notifications/${id}/read`),
+    markAllRead: () => api.post("/notifications/mark-all-read"),
+    deleteOne: (id: number) => api.delete(`/notifications/${id}`),
   },
   analytics: {
     get: () => api.get("/analytics"),

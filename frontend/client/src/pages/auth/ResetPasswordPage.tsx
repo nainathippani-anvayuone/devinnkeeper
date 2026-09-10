@@ -83,7 +83,7 @@ export default function ResetPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(14,116,144,0.12),_transparent_35%),linear-gradient(135deg,_#fdfcf7_0%,_#f5efe5_45%,_#eef6f8_100%)] p-4 sm:p-6 lg:p-8">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(184,149,114,0.12),_transparent_35%),linear-gradient(135deg,_#fdfcf7_0%,_#f5efe5_45%,_#eef6f8_100%)] p-4 sm:p-6 lg:p-8">
       <div className="mx-auto flex min-h-screen max-w-xl items-center justify-center">
         <motion.div
           initial={{ opacity: 0, y: 18 }}

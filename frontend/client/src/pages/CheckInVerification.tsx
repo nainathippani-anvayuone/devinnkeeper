@@ -16,7 +16,9 @@ import {
   Smartphone,
   BedDouble,
   ChevronRight,
-  Download
+  Download,
+  Bluetooth,
+  ArrowLeft
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -78,10 +80,268 @@ function loadRazorpayScript() {
 
 import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "wouter";
+
+// DigitalKeyPage: Matches the reference image — blue hotel room key card + Bluetooth animated unlock steps
+function DigitalKeyPage({
+  selectedReservation,
+  keyDetails,
+  onDownloadReceipt,
+}: {
+  selectedReservation: any;
+  keyDetails: any;
+  onDownloadReceipt: () => void;
+}) {
+  const [unlockStep, setUnlockStep] = useState<number>(0); // 0=idle, 1-4=steps, 5=unlocked
+  const [isUnlocking, setIsUnlocking] = useState<boolean>(false);
+  const [showQR, setShowQR] = useState<boolean>(false);
+
+  const roomNum = selectedReservation?.roomNumber || selectedReservation?.room?.room_number || selectedReservation?.room?.number || selectedReservation?.roomId || "101";
+  const guestName = selectedReservation?.guest
+    ? `${selectedReservation.guest.firstName} ${selectedReservation.guest.lastName}`
+    : "Guest";
+  const pin = keyDetails?.digitalPin || "395676";
+
+  // Checkout date formatted
+  const checkoutDate = selectedReservation?.checkOut
+    ? new Date(selectedReservation.checkOut).toLocaleString("en-US", { hour: "2-digit", minute: "2-digit", month: "short", day: "numeric" })
+    : "11:00 AM, Jul 31";
+
+  const unlockSteps = [
+    `Searching for lock ${roomNum}...`,
+    "Connecting via Bluetooth...",
+    "Authenticating digital key...",
+    "Sending unlock command...",
+  ];
+
+  const handleUnlock = () => {
+    if (isUnlocking || unlockStep === 5) return;
+    setIsUnlocking(true);
+    setUnlockStep(0);
+
+    let step = 1;
+    const run = () => {
+      setUnlockStep(step);
+      if (step < 4) {
+        step++;
+        setTimeout(run, 800);
+      } else {
+        setTimeout(() => {
+          setUnlockStep(5);
+          setIsUnlocking(false);
+          // Auto-relock after 5 seconds
+          setTimeout(() => setUnlockStep(0), 5000);
+        }, 800);
+      }
+    };
+    setTimeout(run, 300);
+  };
+
+  return (
+    <div className="max-w-sm mx-auto space-y-4 animate-in fade-in duration-300">
+      {/* Header */}
+      <div className="flex items-center gap-3 px-1">
+        <div className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center cursor-pointer">
+          <ArrowLeft className="w-4 h-4 text-gray-600 dark:text-gray-300" />
+        </div>
+        <div className="flex items-center gap-1.5">
+          <Building2 className="w-4 h-4 text-gray-500" />
+          <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">InnKeeper</span>
+        </div>
+      </div>
+
+      {/* Progress dots */}
+      <div className="flex gap-1.5 px-1">
+        {[...Array(6)].map((_, i) => (
+          <div
+            key={i}
+            className={`h-1 rounded-full transition-all ${
+              i === 5 ? "flex-1 bg-[#8B6748]" : "flex-1 bg-[#C4A882] dark:bg-[#6B4F34]"
+            }`}
+          />
+        ))}
+      </div>
+
+      {/* Blue Hotel Room Key Card */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#8B6748] via-[#7A5A3C] to-[#5C3D2E] text-white p-5 shadow-xl shadow-[#8B6748]/30">
+        {/* Decorative circle */}
+        <div className="absolute -right-8 -top-8 w-32 h-32 rounded-full bg-white/10" />
+        <div className="absolute -right-2 top-8 w-16 h-16 rounded-full bg-white/10" />
+
+        <div className="relative z-10 space-y-4">
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-[#F3EDE4]">INNKEEPER MOTOR LODGE</p>
+              <p className="text-xs text-[#E8DED2] mt-0.5">Digital room key</p>
+            </div>
+            {/* Toggle switch */}
+            <div
+              onClick={handleUnlock}
+              className={`relative w-12 h-6 rounded-full cursor-pointer transition-all ${
+                unlockStep === 5 ? "bg-emerald-400" : "bg-yellow-400"
+              } flex items-center px-0.5`}
+            >
+              <div
+                className={`w-5 h-5 bg-white rounded-full shadow-md transition-transform ${
+                  unlockStep === 5 ? "translate-x-6" : "translate-x-0"
+                }`}
+              />
+            </div>
+          </div>
+
+          <div>
+            <p className="text-[10px] text-[#E8DED2] uppercase tracking-wider">Room</p>
+            <p className="text-5xl font-black tracking-wide mt-0.5">{roomNum}</p>
+          </div>
+
+          <div className="flex items-end justify-between">
+            <p className="text-[10px] text-[#E8DED2]">{guestName}</p>
+            <div className="text-right">
+              <p className="text-[10px] text-[#E8DED2]">Valid until</p>
+              <p className="text-xs font-bold">{checkoutDate}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Bluetooth / QR row */}
+      <div className="flex items-center justify-between px-1">
+        <button
+          onClick={() => setShowQR(false)}
+          className={`flex items-center gap-1.5 text-xs font-semibold ${
+            !showQR ? "text-[#8B6748]" : "text-gray-400"
+          }`}
+        >
+          <Bluetooth className="w-3.5 h-3.5" />
+          Digital key ready
+        </button>
+        <button
+          onClick={() => setShowQR(true)}
+          className={`flex items-center gap-1.5 text-xs font-semibold ${
+            showQR ? "text-[#8B6748]" : "text-gray-400"
+          }`}
+        >
+          <QrCode className="w-3.5 h-3.5" />
+          Show QR instead
+        </button>
+      </div>
+
+      {showQR ? (
+        /* QR code view */
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center gap-3">
+          <svg className="w-36 h-36 text-gray-900" viewBox="0 0 29 29" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="1" y="1" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="2" />
+            <rect x="3" y="3" width="3" height="3" fill="currentColor" />
+            <rect x="21" y="1" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="2" />
+            <rect x="23" y="3" width="3" height="3" fill="currentColor" />
+            <rect x="1" y="21" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="2" />
+            <rect x="3" y="23" width="3" height="3" fill="currentColor" />
+            <rect x="10" y="1" width="2" height="2" fill="currentColor" />
+            <rect x="14" y="1" width="2" height="2" fill="currentColor" />
+            <rect x="10" y="4" width="3" height="2" fill="currentColor" />
+            <rect x="9" y="7" width="2" height="2" fill="currentColor" />
+            <rect x="15" y="7" width="4" height="2" fill="currentColor" />
+            <rect x="1" y="10" width="2" height="2" fill="currentColor" />
+            <rect x="7" y="10" width="2" height="2" fill="currentColor" />
+            <rect x="10" y="10" width="4" height="4" fill="currentColor" />
+            <rect x="16" y="10" width="3" height="2" fill="currentColor" />
+            <rect x="24" y="10" width="4" height="2" fill="currentColor" />
+            <rect x="1" y="13" width="3" height="2" fill="currentColor" />
+            <rect x="18" y="13" width="4" height="2" fill="currentColor" />
+            <rect x="26" y="13" width="2" height="2" fill="currentColor" />
+            <rect x="1" y="16" width="2" height="2" fill="currentColor" />
+            <rect x="9" y="15" width="2" height="4" fill="currentColor" />
+            <rect x="12" y="16" width="4" height="2" fill="currentColor" />
+            <rect x="21" y="15" width="3" height="3" fill="currentColor" />
+            <rect x="10" y="20" width="2" height="2" fill="currentColor" />
+            <rect x="13" y="19" width="3" height="3" fill="currentColor" />
+            <rect x="17" y="20" width="3" height="2" fill="currentColor" />
+            <rect x="25" y="19" width="3" height="2" fill="currentColor" />
+            <rect x="17" y="23" width="2" height="4" fill="currentColor" />
+            <rect x="20" y="23" width="4" height="2" fill="currentColor" />
+          </svg>
+          <p className="text-xs text-gray-500 font-medium">Scan to authenticate room access</p>
+          <p className="font-mono text-xl font-black text-[#8B6748]">{pin}</p>
+        </div>
+      ) : (
+        /* Door unlock section */
+        <div className="bg-white dark:bg-card border border-gray-100 dark:border-border rounded-2xl shadow-sm overflow-hidden">
+          {/* Unlock circle + status */}
+          <div className="py-8 flex flex-col items-center gap-3">
+            <button
+              onClick={handleUnlock}
+              disabled={isUnlocking}
+              className={`w-24 h-24 rounded-full flex items-center justify-center transition-all cursor-pointer ${
+                unlockStep === 5
+                  ? "bg-emerald-100 border-2 border-emerald-400"
+                  : isUnlocking
+                  ? "bg-[#F3EDE4] border-2 border-[#8B6748] animate-pulse"
+                  : "bg-[#F3EDE4] border-2 border-[#C4A882] hover:border-[#8B6748]"
+              }`}
+            >
+              {unlockStep === 5 ? (
+                <Unlock className="w-10 h-10 text-emerald-500" />
+              ) : (
+                <Lock className={`w-10 h-10 ${isUnlocking ? "text-[#8B6748]" : "text-gray-400"}`} />
+              )}
+            </button>
+            <p className={`text-sm font-bold ${
+              unlockStep === 5 ? "text-emerald-600" : "text-gray-500"
+            }`}>
+              {unlockStep === 5 ? "Door unlocked" : isUnlocking ? "Unlocking..." : "Tap to unlock door"}
+            </p>
+          </div>
+
+          {/* Animated steps */}
+          {(isUnlocking || unlockStep === 5) && (
+            <div className="bg-gray-50 dark:bg-accent/30 px-4 pb-4 space-y-2.5">
+              {unlockSteps.map((stepText, index) => (
+                <div key={index} className="flex items-center gap-2.5">
+                  <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 transition-all ${
+                    unlockStep > index
+                      ? "bg-emerald-500"
+                      : unlockStep === index + 1
+                      ? "bg-[#8B6748] animate-pulse"
+                      : "bg-gray-200 dark:bg-gray-700"
+                  }`}>
+                    {unlockStep > index && (
+                      <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 12 12">
+                        <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    )}
+                  </div>
+                  <span className={`text-xs ${
+                    unlockStep > index ? "text-gray-700 dark:text-gray-300 font-medium" : "text-gray-400"
+                  }`}>{stepText}</span>
+                </div>
+              ))}
+
+              {unlockStep === 5 && (
+                <p className="text-center text-[11px] text-gray-400 dark:text-gray-500 pt-1">
+                  Door is open. It will relock automatically in a few seconds.
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Download receipt */}
+      <Button
+        onClick={onDownloadReceipt}
+        variant="outline"
+        className="w-full rounded-xl text-xs font-bold gap-2 py-2.5"
+      >
+        <Download className="w-4 h-4" /> Download Check-In Receipt
+      </Button>
+    </div>
+  );
+}
 
 export default function CheckInVerification() {
   const { t } = useTranslation();
   const qc = useQueryClient();
+  const [, navigate] = useLocation();
   const [reservations, setReservations] = useState<any[]>([]);
   const [selectedResId, setSelectedResId] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState<string>("");
@@ -228,12 +488,12 @@ export default function CheckInVerification() {
           (p: any) => (p.paymentStatus || p.status || '').toLowerCase() === 'paid'
         ));
 
-    if (isSelectedGuestCheckedIn || (selectedReservation?.verificationStatus === 'VERIFIED' && hasPaid)) {
+    if (isSelectedGuestCheckedIn || (selectedReservation?.verificationStatus === 'VERIFIED' && paymentDone)) {
       setStep(3);
     } else if (selectedReservation?.verificationStatus === 'VERIFIED') {
       setStep(2);
     }
-  }, [selectedResId, selectedReservation, isSelectedGuestCheckedIn]);
+  }, [selectedResId, selectedReservation, isSelectedGuestCheckedIn, paymentDone]);
 
   const openRazorpayCheckout = async (paymentData: any, guest: any, onVerified: () => Promise<void> | void) => {
     const checkout = paymentData?.razorpay;
@@ -471,25 +731,26 @@ export default function CheckInVerification() {
 
       if (data.success) {
         setVerificationResult({
-          matchScore: data.matchScore || "92%",
+          matchScore: data.matchScore || "100%",
           verificationStatus: data.verificationStatus || "VERIFIED",
-          message: data.message || "Identity Verification Successful! Driver License and Selfie facial features matched.",
+          message: data.message || "Identity Verification Successful! Images verified successfully.",
         });
-        toast.success(data.message || "ID Verification Successful! Proceeding to Step 2...");
+        toast.success(data.message || "Identity Verified Successfully! Proceeding to Step 2...");
         qc.invalidateQueries({ queryKey: ["reservations"] });
         qc.invalidateQueries({ queryKey: ["guests"] });
         qc.invalidateQueries({ queryKey: ["payments"] });
         qc.invalidateQueries({ queryKey: ["rooms"] });
         qc.invalidateQueries({ queryKey: ["dashboard"] });
         fetchReservations(targetResId);
-        setStep(2); // Automatically advance directly to Step 2 (Payment Process)
+        setStep(2); // Advance directly to Step 2 ONLY when images are verified
       } else {
         setVerificationResult({
           matchScore: data.matchScore || "45%",
           verificationStatus: "REJECTED",
           message: data.error || data.message || "Verification Failed! Driver License and Selfie facial features do not match.",
         });
-        toast.error(data.error || data.message || "Identity verification failed!");
+        toast.error(data.error || data.message || "Verification failed! Images do not match.");
+        // DO NOT advance to Step 2 on verification failure
       }
     } catch (err: any) {
       setVerifying(false);
@@ -590,8 +851,8 @@ export default function CheckInVerification() {
 
       setStep(3);
       setCheckInCompletedAnimation(true);
-      setDigitalKeyGenerated(false);
-      toast.success("Check-in completed successfully!");
+      setDigitalKeyGenerated(false); // Reset so the "Generate Digital Key" button is shown first
+      toast.success("Check-in completed successfully! Please generate your digital key.");
 
       qc.invalidateQueries({ queryKey: ["reservations"] });
       qc.invalidateQueries({ queryKey: ["rooms"] });
@@ -686,14 +947,14 @@ export default function CheckInVerification() {
   return (
     <div className="space-y-8 max-w-6xl mx-auto pb-12">
       {/* 3-Hour Prior Check-In Notification Banner */}
-      <div className="bg-gradient-to-r from-blue-600/15 via-indigo-600/15 to-purple-600/15 border border-blue-500/30 rounded-2xl p-5 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div className="bg-gradient-to-r from-[#8B6748]/15 via-[#B89572]/15 to-[#C4A882]/15 border border-[#8B6748]/30 rounded-2xl p-5 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div className="flex items-center gap-3.5">
-          <div className="h-11 w-11 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold shadow-md shrink-0">
+          <div className="h-11 w-11 rounded-xl bg-[#8B6748] text-white flex items-center justify-center font-bold shadow-md shrink-0">
             <Sparkles className="w-5 h-5 animate-pulse" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">3-Hour Prior Alert System</span>
+              <span className="text-xs font-bold text-[#8B6748] uppercase tracking-wider">3-Hour Prior Alert System</span>
               <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
             </div>
             <h3 className="text-sm font-bold text-foreground">{t("checkin.reminderAlertTitle")}</h3>
@@ -707,7 +968,7 @@ export default function CheckInVerification() {
             onClick={() => handleSend3HourReminder()}
             disabled={sendingReminder}
             size="sm"
-            className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold px-4 py-2 gap-2 shadow-sm"
+            className="bg-[#8B6748] hover:bg-[#7A5A3C] text-white rounded-xl text-xs font-semibold px-4 py-2 gap-2 shadow-sm"
           >
             {sendingReminder ? t("common.submitting") : t("checkin.send3hReminder")}
           </Button>
@@ -717,14 +978,14 @@ export default function CheckInVerification() {
 
 
       {/* Candidate Selection Banner */}
-      <div className="bg-card rounded-2xl border border-blue-200 dark:border-blue-900 p-6 shadow-md space-y-4">
+      <div className="bg-card rounded-2xl border border-[#C4A882] p-6 shadow-md space-y-4">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
-            <span className="text-xs font-extrabold uppercase tracking-widest text-blue-600 dark:text-blue-400 bg-blue-500/10 px-3 py-1 rounded-full">
+            <span className="text-xs font-extrabold uppercase tracking-widest text-[#8B6748] bg-[#F3EDE4] px-3 py-1 rounded-full">
               {t("checkin.step0Title")}
             </span>
             <h3 className="text-lg font-extrabold flex items-center gap-2 text-foreground mt-2">
-              <User className="w-5 h-5 text-blue-600" /> {t("checkin.selectCandidateHeader")}
+              <User className="w-5 h-5 text-[#8B6748]" /> {t("checkin.selectCandidateHeader")}
             </h3>
             <p className="text-xs text-muted-foreground mt-0.5">{t("checkin.selectCandidateSub")}</p>
           </div>
@@ -750,7 +1011,7 @@ export default function CheckInVerification() {
                 setCheckInCompletedAnimation(false);
                 setDigitalKeyGenerated(false);
               }}
-              className="bg-card border-2 border-blue-500 rounded-xl px-4 py-3 text-xs font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-blue-600 w-full sm:w-80 shadow-md"
+              className="bg-card border-2 border-[#8B6748] rounded-xl px-4 py-3 text-xs font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-[#8B6748] w-full sm:w-80 shadow-md"
             >
               <option value="">{t("checkin.chooseCandidatePlaceholder")}</option>
               {reservations.map((r) => {
@@ -775,29 +1036,50 @@ export default function CheckInVerification() {
         </div>
 
         {selectedReservation ? (
-          isSelectedGuestCheckedIn ? (
+          isSelectedGuestCheckedIn && !checkInCompletedAnimation ? (
             <div className="pt-4">
-              <div className="bg-card border border-border rounded-3xl p-8 shadow-xl text-center max-w-md mx-auto space-y-4 animate-in fade-in zoom-in duration-300">
-                <div className="w-16 h-16 rounded-full bg-blue-600 text-white flex items-center justify-center mx-auto shadow-lg shadow-blue-500/30">
-                  <CheckCircle2 className="w-9 h-9" />
+              <div className="bg-white dark:bg-card border border-border rounded-3xl p-8 shadow-xl text-center max-w-lg mx-auto space-y-5 animate-in fade-in zoom-in duration-300">
+                {/* Blue success circle */}
+                <div className="relative mx-auto w-24 h-24 flex items-center justify-center">
+                  <div className="absolute inset-0 rounded-full bg-[#F3EDE4]" />
+                  <div className="w-16 h-16 rounded-full bg-[#8B6748] text-white flex items-center justify-center shadow-lg shadow-[#8B6748]/40 z-10">
+                    <CheckCircle2 className="w-9 h-9" />
+                  </div>
                 </div>
 
-                <div>
-                  <span className="text-[11px] font-extrabold tracking-widest uppercase text-blue-600 dark:text-blue-400 bg-blue-500/10 px-3.5 py-1 rounded-full">
-                    {t("checkin.completedBadge")}
+                <div className="space-y-2">
+                  <span className="inline-block text-[11px] font-extrabold tracking-widest uppercase text-[#8B6748] bg-[#F3EDE4] border border-[#C4A882] px-4 py-1 rounded-full">
+                    Already Checked In
                   </span>
-                  <h3 className="text-xl font-black text-foreground mt-3 leading-tight">
-                    {t("checkin.completedHeading")}
+                  <h3 className="text-2xl font-black text-foreground mt-2 leading-tight">
+                    You are already checked in!
                   </h3>
-                  <p className="text-xs text-muted-foreground mt-1.5">
-                    Reservation RES-{String(selectedReservation.id).padStart(4, '0')} for <span className="font-semibold text-foreground">{selectedReservation.guest ? `${selectedReservation.guest.firstName} ${selectedReservation.guest.lastName}` : "Guest"}</span> is active.
+                  <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+                    Reservation RES-{String(selectedReservation.id).padStart(4, '0')} for{" "}
+                    <span className="font-semibold text-foreground">
+                      {selectedReservation.guest ? `${selectedReservation.guest.firstName} ${selectedReservation.guest.lastName}` : "Guest"}
+                    </span>{" "}
+                    is active. Your room digital passkey is ready.
                   </p>
                 </div>
 
-                <div className="pt-1">
-                  <span className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-blue-500/10 text-blue-700 dark:text-blue-300 text-xs font-bold border border-blue-500/20">
-                    ✓ {t("dashboard.rooms")} #{selectedReservation.roomNumber || selectedReservation.room?.room_number || selectedReservation.room?.number || selectedReservation.roomId || "101"} {t("reservations.checkedIn")}
-                  </span>
+                <div className="bg-accent/40 p-4 rounded-2xl border border-border text-xs space-y-2 text-left">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Guest Name:</span>
+                    <span className="font-bold text-foreground">
+                      {selectedReservation.guest ? `${selectedReservation.guest.firstName} ${selectedReservation.guest.lastName}` : "Guest"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Assigned Room:</span>
+                    <span className="font-extrabold text-[#8B6748]">
+                      Room #{selectedReservation.roomNumber || selectedReservation.room?.room_number || selectedReservation.room?.number || selectedReservation.roomId || "101"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Status:</span>
+                    <span className="font-bold text-emerald-600 dark:text-emerald-400">✓ Checked-In & Verified</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -823,7 +1105,7 @@ export default function CheckInVerification() {
             </div>
           ) : null
         ) : (
-          <div className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-700 dark:text-blue-300 text-xs font-bold text-center">
+          <div className="p-4 rounded-xl bg-[#F3EDE4] border border-[#C4A882] text-[#8B6748] text-xs font-bold text-center">
             {t("checkin.selectCandidateAlert")}
           </div>
         )}
@@ -831,8 +1113,8 @@ export default function CheckInVerification() {
 
 
 
-      {/* Conditionally Render Workflow Steps ONLY when a Candidate is selected and NOT already checked in and NOT cancelled */}
-      {selectedResId && !isSelectedGuestCheckedIn && !isSelectedGuestCancelled && (
+      {/* Conditionally Render Workflow Steps: Scenario 1 (Fresh check-in or session-completed check-in) */}
+      {selectedResId && (!isSelectedGuestCheckedIn || checkInCompletedAnimation) && !isSelectedGuestCancelled && (
         <>
           {/* STEP 1: ID Verification */}
           {step === 1 && (
@@ -842,7 +1124,7 @@ export default function CheckInVerification() {
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-border pb-5">
                   <div>
                     <h2 className="text-lg font-bold flex items-center gap-2">
-                      <FileBadge className="w-5 h-5 text-blue-500" /> {t("checkin.step1Heading")}
+                      <FileBadge className="w-5 h-5 text-[#8B6748]" /> {t("checkin.step1Heading")}
                     </h2>
                     <p className="text-xs text-muted-foreground">{t("checkin.step1Subtitle")}</p>
                   </div>
@@ -862,7 +1144,7 @@ export default function CheckInVerification() {
                         }
                         setVerificationResult(null);
                       }}
-                      className="bg-card border border-border rounded-lg px-3 py-1.5 text-xs font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-72"
+                      className="bg-card border border-border rounded-lg px-3 py-1.5 text-xs font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-[#8B6748] w-full sm:w-72"
                     >
                       {reservations.map((r) => {
                         const name = r.guest ? `${r.guest.firstName} ${r.guest.lastName}` : `Guest #${r.guestId || r.id}`;
@@ -898,7 +1180,7 @@ export default function CheckInVerification() {
                     <div className="pt-3">
                       <Button
                         onClick={() => setStep(2)}
-                        className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold px-6 py-3 shadow-md gap-2"
+                        className="bg-[#8B6748] hover:bg-[#7A5A3C] text-white rounded-xl text-xs font-bold px-6 py-3 shadow-md gap-2"
                       >
                         <span>కొనసాగించండి: చెల్లింపు ప్రక్రియ (Continue to Step 2: Payment)</span>
                         <ChevronRight className="w-4 h-4" />
@@ -919,9 +1201,9 @@ export default function CheckInVerification() {
                   <div className="border border-border rounded-2xl p-5 bg-accent/20 space-y-4">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2 font-bold text-sm">
-                        <FileBadge className="w-4 h-4 text-blue-500" /> {t("checkin.driverLicenseVerification")}
+                        <FileBadge className="w-4 h-4 text-[#8B6748]" /> {t("checkin.driverLicenseVerification")}
                       </div>
-                      {dlImage && <CheckCircle2 className="w-5 h-5 text-blue-500" />}
+                      {dlImage && <CheckCircle2 className="w-5 h-5 text-[#8B6748]" />}
                     </div>
 
                     <div className="relative h-52 border-2 border-dashed border-border rounded-xl flex flex-col items-center justify-center overflow-hidden bg-card">
@@ -953,9 +1235,9 @@ export default function CheckInVerification() {
                   <div className="border border-border rounded-2xl p-5 bg-accent/20 space-y-4">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2 font-bold text-sm">
-                        <Camera className="w-4 h-4 text-blue-500" /> {t("checkin.liveSelfieVerification")}
+                        <Camera className="w-4 h-4 text-[#8B6748]" /> {t("checkin.liveSelfieVerification")}
                       </div>
-                      {selfieImage && <CheckCircle2 className="w-5 h-5 text-blue-500" />}
+                      {selfieImage && <CheckCircle2 className="w-5 h-5 text-[#8B6748]" />}
                     </div>
 
                     <div className="relative h-52 border-2 border-dashed border-border rounded-xl flex flex-col items-center justify-center overflow-hidden bg-card">
@@ -974,7 +1256,7 @@ export default function CheckInVerification() {
 
                     <div className="grid grid-cols-2 gap-2">
                       {isCameraActive ? (
-                        <Button onClick={captureSelfie} className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-xs">
+                        <Button onClick={captureSelfie} className="w-full bg-[#8B6748] hover:bg-[#7A5A3C] text-white rounded-xl text-xs font-bold shadow-xs">
                           {t("checkin.snapSelfie")}
                         </Button>
                       ) : (
@@ -1035,7 +1317,7 @@ export default function CheckInVerification() {
                         <Button
                           onClick={() => setStep(2)}
                           title="Proceed to Next Step"
-                          className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold px-4 py-2.5 shrink-0 gap-1.5 shadow-md transition hover:scale-105 flex items-center"
+                          className="bg-[#8B6748] hover:bg-[#7A5A3C] text-white rounded-xl text-xs font-bold px-4 py-2.5 shrink-0 gap-1.5 shadow-md transition hover:scale-105 flex items-center"
                         >
                           <span>{t("checkin.nextStep")}</span>
                           <ChevronRight className="w-4 h-4" />
@@ -1055,7 +1337,7 @@ export default function CheckInVerification() {
                       handleVerifyId(false, false);
                     }}
                     disabled={verifying}
-                    className="w-full sm:w-auto h-14 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-base font-extrabold px-10 gap-3 shadow-xl shadow-blue-500/25 cursor-pointer disabled:opacity-50 transition hover:scale-102"
+                    className="w-full sm:w-auto h-14 bg-[#8B6748] hover:bg-[#7A5A3C] text-white rounded-2xl text-base font-extrabold px-10 gap-3 shadow-xl shadow-[#8B6748]/25 cursor-pointer disabled:opacity-50 transition hover:scale-102"
                   >
                     {verifying ? (
                       <>
@@ -1166,10 +1448,13 @@ export default function CheckInVerification() {
           {step === 3 && selectedReservation && (
             <div className="space-y-6">
               {!checkInCompletedAnimation ? (
-                /* Step 3: Complete Check-In Page (Rendered directly after Step 2 payment) */
-                <div className="bg-card border border-border rounded-3xl p-8 shadow-xl text-center max-w-xl mx-auto space-y-6 animate-in fade-in duration-300">
-                  <div className="w-20 h-20 rounded-full bg-blue-500/10 text-blue-600 flex items-center justify-center mx-auto border border-blue-500/20">
-                    <CheckCircle2 className="w-10 h-10" />
+                /* Step 3A: Summary before completing check-in */
+                <div className="bg-white dark:bg-card border border-border rounded-3xl p-8 shadow-xl text-center max-w-xl mx-auto space-y-6 animate-in fade-in duration-300">
+                  <div className="relative mx-auto w-24 h-24 flex items-center justify-center">
+                    <div className="absolute inset-0 rounded-full bg-[#F3EDE4]" />
+                    <div className="w-16 h-16 rounded-full bg-[#8B6748] text-white flex items-center justify-center shadow-lg shadow-[#8B6748]/40 z-10">
+                      <CheckCircle2 className="w-9 h-9" />
+                    </div>
                   </div>
                   <div>
                     <h3 className="text-2xl font-black text-foreground">{t("checkin.completeCheckInTitle")}</h3>
@@ -1193,7 +1478,7 @@ export default function CheckInVerification() {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">{t("checkin.assignedRoomLabel")}</span>
-                      <span className="font-bold text-blue-600 dark:text-blue-400">
+                      <span className="font-bold text-[#8B6748]">
                         {t("dashboard.rooms")} #{selectedReservation.roomNumber || selectedReservation.room?.room_number || selectedReservation.room?.number || selectedReservation.roomId || "101"}
                       </span>
                     </div>
@@ -1202,7 +1487,7 @@ export default function CheckInVerification() {
                   <Button
                     onClick={handleCompleteCheckIn}
                     disabled={completingCheckIn}
-                    className="w-full h-14 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-base font-extrabold shadow-xl shadow-blue-500/25 flex items-center justify-center gap-3 cursor-pointer"
+                    className="w-full h-14 bg-[#8B6748] hover:bg-[#7A5A3C] text-white rounded-2xl text-base font-extrabold shadow-xl shadow-[#8B6748]/25 flex items-center justify-center gap-3 cursor-pointer"
                   >
                     {completingCheckIn ? (
                       <>
@@ -1215,289 +1500,69 @@ export default function CheckInVerification() {
                     )}
                   </Button>
                 </div>
-              ) : !digitalKeyGenerated ? (
-                /* Step 4: Check-In Completed Animation Page */
-                <div className="bg-card border border-blue-500/30 rounded-3xl p-10 shadow-xl text-center max-w-xl mx-auto space-y-6 animate-in fade-in zoom-in duration-300">
-                  <div className="relative w-24 h-24 mx-auto flex items-center justify-center">
-                    <span className="absolute inset-0 rounded-full bg-blue-500/20 animate-ping" />
-                    <div className="w-24 h-24 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-lg shadow-blue-600/30 z-10">
-                      <Sparkles className="w-12 h-12 animate-bounce" />
+              ) : (
+                /* Step 3B: Check-In Completed — Blue theme + Generate Digital Key button */
+                <div className="bg-white dark:bg-card border border-border rounded-3xl p-10 shadow-xl text-center max-w-md mx-auto space-y-5 animate-in fade-in zoom-in duration-300">
+                  {/* Blue success icon */}
+                  <div className="relative mx-auto w-28 h-28 flex items-center justify-center">
+                    <div className="absolute inset-0 rounded-full bg-[#F3EDE4]" />
+                    <div className="w-20 h-20 rounded-full bg-[#8B6748] text-white flex items-center justify-center shadow-xl shadow-[#8B6748]/40 z-10">
+                      <CheckCircle2 className="w-11 h-11" />
                     </div>
                   </div>
 
-                  <div>
-                    <span className="text-xs font-extrabold tracking-widest uppercase text-blue-600 dark:text-blue-400 bg-blue-500/10 px-4 py-1.5 rounded-full">
-                      {t("checkin.statusCheckedIn")}
+                  <div className="space-y-2">
+                    <span className="inline-block text-[11px] font-extrabold tracking-widest uppercase text-[#8B6748] bg-[#F3EDE4] border border-[#C4A882] px-5 py-1.5 rounded-full">
+                      Check-In Completed
                     </span>
-                    <h2 className="text-2xl font-black text-foreground mt-4">{t("checkin.checkInSuccessTitle")}</h2>
-                    <p className="text-xs text-muted-foreground mt-2">
-                      {t("checkin.checkInSuccessSub")}
+                    <h2 className="text-2xl font-black text-foreground mt-2 leading-tight">
+                      Your check-in was completed successfully.
+                    </h2>
+                    <p className="text-xs text-muted-foreground">
+                      Reservation RES-{String(selectedReservation.id).padStart(4, '0')} for{" "}
+                      <span className="font-semibold text-foreground">
+                        {selectedReservation.guest ? `${selectedReservation.guest.firstName} ${selectedReservation.guest.lastName}` : "Guest"}
+                      </span>{" "}
+                      is active.
                     </p>
                   </div>
+
+                  <span className="inline-flex items-center gap-1.5 px-5 py-2 rounded-full bg-[#F3EDE4] text-[#8B6748] text-xs font-bold border border-[#C4A882]">
+                    ✓ Room #{selectedReservation.roomNumber || selectedReservation.room?.room_number || selectedReservation.room?.number || selectedReservation.roomId || "101"} Checked-In
+                  </span>
 
                   <Button
                     onClick={() => {
                       const resIdNum = Number(selectedResId) || 1;
                       const roomNum = selectedReservation?.roomNumber || selectedReservation?.room?.room_number || selectedReservation?.room?.number || selectedReservation?.roomId || "101";
                       const uniquePin = String((resIdNum * 147382 + 582910) % 900000 + 100000);
-                      setKeyDetails({
+                      const kd = {
                         digitalPin: uniquePin,
                         lockId: `SL-ROOM-${roomNum}`,
                         keyPayload: { encryptedKey: `a8f3b2e9c1d4e7f0a8b9c0d1e2f3a4b${resIdNum}` }
-                      });
-                      setDigitalKeyGenerated(true);
-                      toast.success("Digital Room Key generated successfully!");
+                      };
+                      setKeyDetails(kd);
+                      // Save to sessionStorage then navigate to /digital-key page
+                      sessionStorage.setItem("digitalKeyData", JSON.stringify({
+                        reservation: selectedReservation,
+                        keyDetails: kd,
+                      }));
                       handleGenerateDigitalKey();
+                      navigate("/digital-key");
                     }}
                     disabled={generatingKey}
-                    className="w-full h-14 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-base font-extrabold shadow-xl shadow-blue-600/30 flex items-center justify-center gap-3 cursor-pointer"
+                    className="w-full h-14 bg-[#8B6748] hover:bg-[#7A5A3C] text-white rounded-2xl text-base font-extrabold shadow-xl shadow-[#8B6748]/30 flex items-center justify-center gap-3 cursor-pointer"
                   >
                     {generatingKey ? (
                       <>
-                        <RefreshCw className="w-5 h-5 animate-spin" /> {t("checkin.generatingDigitalKey")}
+                        <RefreshCw className="w-5 h-5 animate-spin" /> Generating Key...
                       </>
                     ) : (
                       <>
-                        <KeyRound className="w-6 h-6" /> {t("checkin.generateDigitalKeyBtn")} <ChevronRight className="w-5 h-5" />
+                        Generate Digital Key <KeyRound className="w-5 h-5" />
                       </>
                     )}
                   </Button>
-                </div>
-              ) : (
-                /* Stage 5: Digital Key Page (Matching Exact Reference Layout) */
-                <div className="space-y-6 animate-in fade-in duration-300">
-                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                    {/* Left Sidebar Card: Check-In Active */}
-                    <div className="lg:col-span-4 bg-card border border-border rounded-3xl p-6 shadow-sm flex flex-col justify-between space-y-6">
-                      <div className="text-center space-y-3 pt-4">
-                        <div className="w-16 h-16 rounded-full bg-blue-500/10 text-blue-600 flex items-center justify-center mx-auto border border-blue-500/20 shadow-xs">
-                          <CheckCircle2 className="w-8 h-8" />
-                        </div>
-                        <div>
-                          <h3 className="font-extrabold text-xl text-foreground">{t("checkin.checkInActiveTitle")}</h3>
-                          <p className="text-xs text-muted-foreground mt-0.5">{t("checkin.digitalKeyIssuedSub")}</p>
-                        </div>
-
-                        <div className="space-y-3 bg-accent/30 p-4 rounded-2xl text-xs text-left mt-6 border border-border/50">
-                          <div className="flex justify-between items-start">
-                            <span className="text-muted-foreground font-medium">{t("reservations.guestName")}:</span>
-                            <span className="font-bold text-right text-foreground">
-                              {selectedReservation.guest ? `${selectedReservation.guest.firstName}\n${selectedReservation.guest.lastName}` : "Guest"}
-                            </span>
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <span className="text-muted-foreground font-medium">{t("common.status")}:</span>
-                            <span className="font-bold text-blue-600 dark:text-blue-400">{t("reservations.checkedIn")}</span>
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <span className="text-muted-foreground font-medium">{t("checkin.assignedRoomLabel")}</span>
-                            <span className="font-bold text-blue-600 dark:text-blue-400 font-mono">
-                              {t("dashboard.rooms")} #{selectedReservation.roomNumber || selectedReservation.room?.room_number || selectedReservation.room?.number || selectedReservation.roomId || "101"}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="space-y-3 pb-2">
-                        <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-2xl text-center">
-                          <p className="text-xs font-extrabold text-blue-600 dark:text-blue-400">{t("checkin.digitalKeyActiveBadge")}</p>
-                          <p className="text-[10px] text-muted-foreground mt-0.5">{t("checkin.validForStay")}</p>
-                        </div>
-
-                        <Button
-                          onClick={() => {
-                            const guestName = selectedReservation.guest ? `${selectedReservation.guest.firstName} ${selectedReservation.guest.lastName}` : "Guest";
-                            const roomNum = selectedReservation.roomNumber || selectedReservation.roomId || "101";
-                            const pin = keyDetails?.digitalPin || "395676";
-                            const lockId = keyDetails?.lockId || `LOCK-ROOM-${roomNum}-4469`;
-                            const content = `================================================
-INNKEEPER MOTELS - OFFICIAL CHECK-IN RECEIPT
-================================================
-Date           : ${new Date().toLocaleString()}
-Reservation ID : RES-${String(selectedReservation.id).padStart(4, '0')}
-Guest Name     : ${guestName}
-Assigned Room  : Room #${roomNum}
-Lock Serial ID : ${lockId}
-
-CHECK-IN STATUS DETAILS:
-------------------------------------------------
-1. ID Verification  : VERIFIED (Pass)
-2. Payment Process  : AUTHORIZED & PAID
-3. Check-In Status  : CHECKED-IN (Complete)
-
-DIGITAL KEY ACCESS CODE:
-------------------------------------------------
-Door Lock PIN      : ${pin}
-Encryption Standard: AES-256 GCM
-
-================================================
-Thank you for staying with InnKeeper Motels!
-================================================`;
-                            const blob = new Blob([content], { type: "text/plain" });
-                            const url = URL.createObjectURL(blob);
-                            const a = document.createElement("a");
-                            a.href = url;
-                            a.download = `CheckIn_Receipt_RES-${selectedReservation.id}.txt`;
-                            a.click();
-                            URL.revokeObjectURL(url);
-                            toast.success("Receipt downloaded!");
-                          }}
-                          variant="outline"
-                          className="w-full rounded-xl text-xs font-bold gap-2 py-2.5"
-                        >
-                          <Download className="w-4 h-4" /> {t("checkin.downloadReceipt")}
-                        </Button>
-                      </div>
-                    </div>
-
-                    {/* Right Main Column */}
-                    <div className="lg:col-span-8 space-y-6">
-                      {/* Top Passcard Box */}
-                      <div className="bg-gradient-to-br from-[#0c1322] via-[#0f172a] to-[#1e293b] border border-slate-700/60 text-white rounded-3xl p-6 shadow-2xl space-y-6">
-                        <div className="flex justify-between items-center border-b border-slate-700/60 pb-4">
-                          <div className="flex items-center gap-2.5">
-                            <Smartphone className="w-5 h-5 text-blue-400" />
-                            <span className="font-bold text-sm tracking-wider uppercase text-slate-200">{t("checkin.contactlessPass")}</span>
-                          </div>
-                          <span className="text-[11px] px-3 py-1 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30 font-mono font-bold">
-                            AES-256 GCM
-                          </span>
-                        </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-12 gap-6 items-center">
-                          <div className="sm:col-span-7 space-y-4">
-                            <div>
-                              <p className="text-[11px] text-slate-400 uppercase font-semibold tracking-wider">{t("checkin.roomDoorPIN")}</p>
-                              <div className="text-4xl font-mono font-extrabold tracking-widest text-blue-400 mt-1">
-                                {keyDetails?.digitalPin || "395676"}
-                              </div>
-                            </div>
-
-                            <div className="space-y-1 text-xs text-slate-300">
-                              <p><span className="text-slate-400 font-medium">{t("checkin.lockId")}</span> <span className="font-mono text-slate-200">{keyDetails?.lockId || `LOCK-ROOM-${selectedReservation.roomNumber || selectedReservation.roomId || "101"}-4469`}</span></p>
-                              <p><span className="text-slate-400 font-medium">Payload Hash:</span> <span className="font-mono text-slate-200">AES256-ACTIVE-KEY...</span></p>
-                            </div>
-                          </div>
-
-                          <div className="sm:col-span-5 flex flex-col items-center justify-center p-4 bg-white/5 rounded-2xl border border-white/10 text-center">
-                            <div className="bg-white p-3 rounded-xl shadow-lg mb-2">
-                              <svg className="w-24 h-24 text-slate-900" viewBox="0 0 29 29" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                {/* Top Left Finder Pattern */}
-                                <rect x="1" y="1" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="2" />
-                                <rect x="3" y="3" width="3" height="3" fill="currentColor" />
-                                
-                                {/* Top Right Finder Pattern */}
-                                <rect x="21" y="1" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="2" />
-                                <rect x="23" y="3" width="3" height="3" fill="currentColor" />
-                                
-                                {/* Bottom Left Finder Pattern */}
-                                <rect x="1" y="21" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="2" />
-                                <rect x="3" y="23" width="3" height="3" fill="currentColor" />
-
-                                {/* High Density QR Code Matrix Modules */}
-                                <rect x="10" y="1" width="2" height="2" fill="currentColor" />
-                                <rect x="14" y="1" width="2" height="2" fill="currentColor" />
-                                <rect x="17" y="1" width="2" height="2" fill="currentColor" />
-                                <rect x="10" y="4" width="2" height="2" fill="currentColor" />
-                                <rect x="13" y="4" width="3" height="2" fill="currentColor" />
-                                <rect x="17" y="4" width="2" height="2" fill="currentColor" />
-                                <rect x="9" y="7" width="2" height="2" fill="currentColor" />
-                                <rect x="12" y="7" width="2" height="2" fill="currentColor" />
-                                <rect x="15" y="7" width="4" height="2" fill="currentColor" />
-
-                                <rect x="1" y="10" width="2" height="2" fill="currentColor" />
-                                <rect x="4" y="10" width="2" height="2" fill="currentColor" />
-                                <rect x="7" y="10" width="2" height="2" fill="currentColor" />
-                                <rect x="10" y="10" width="4" height="4" fill="currentColor" />
-                                <rect x="16" y="10" width="3" height="2" fill="currentColor" />
-                                <rect x="20" y="10" width="2" height="2" fill="currentColor" />
-                                <rect x="24" y="10" width="4" height="2" fill="currentColor" />
-
-                                <rect x="1" y="13" width="3" height="2" fill="currentColor" />
-                                <rect x="5" y="13" width="2" height="2" fill="currentColor" />
-                                <rect x="15" y="13" width="2" height="2" fill="currentColor" />
-                                <rect x="18" y="13" width="4" height="2" fill="currentColor" />
-                                <rect x="23" y="13" width="2" height="2" fill="currentColor" />
-                                <rect x="26" y="13" width="2" height="2" fill="currentColor" />
-
-                                <rect x="1" y="16" width="2" height="2" fill="currentColor" />
-                                <rect x="4" y="16" width="3" height="2" fill="currentColor" />
-                                <rect x="9" y="15" width="2" height="4" fill="currentColor" />
-                                <rect x="12" y="16" width="4" height="2" fill="currentColor" />
-                                <rect x="17" y="16" width="2" height="2" fill="currentColor" />
-                                <rect x="21" y="15" width="3" height="3" fill="currentColor" />
-                                <rect x="25" y="16" width="3" height="2" fill="currentColor" />
-
-                                <rect x="10" y="20" width="2" height="2" fill="currentColor" />
-                                <rect x="13" y="19" width="3" height="3" fill="currentColor" />
-                                <rect x="17" y="20" width="3" height="2" fill="currentColor" />
-                                <rect x="21" y="19" width="2" height="2" fill="currentColor" />
-                                <rect x="25" y="19" width="3" height="2" fill="currentColor" />
-
-                                <rect x="10" y="23" width="3" height="2" fill="currentColor" />
-                                <rect x="14" y="23" width="2" height="2" fill="currentColor" />
-                                <rect x="17" y="23" width="2" height="4" fill="currentColor" />
-                                <rect x="20" y="23" width="4" height="2" fill="currentColor" />
-                                <rect x="25" y="22" width="3" height="3" fill="currentColor" />
-
-                                <rect x="10" y="26" width="2" height="2" fill="currentColor" />
-                                <rect x="13" y="26" width="3" height="2" fill="currentColor" />
-                                <rect x="20" y="26" width="2" height="2" fill="currentColor" />
-                                <rect x="23" y="26" width="5" height="2" fill="currentColor" />
-                              </svg>
-                            </div>
-                            <p className="text-[10px] text-slate-400 font-medium leading-tight">{t("checkin.scanNFC")}</p>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Bottom Smart Door Lock Simulator Box */}
-                      <div className="bg-card border border-border rounded-3xl p-8 shadow-sm text-center space-y-6">
-                        <div>
-                          <h3 className="font-black text-xl flex items-center justify-center gap-2 text-foreground">
-                            <Lock className="w-5 h-5 text-blue-500" /> {t("checkin.smartDoorSimulator")}
-                          </h3>
-                          <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
-                            {t("checkin.smartDoorSub")} #{selectedReservation.roomNumber || selectedReservation.roomId || "101"}.
-                          </p>
-                        </div>
-
-                        <div className="flex flex-col items-center justify-center space-y-3 py-2">
-                          <div className={`w-20 h-20 rounded-full flex items-center justify-center shadow-lg transition-all ${
-                            doorStatus === "UNLOCKED"
-                              ? "bg-emerald-500/20 text-emerald-500 border border-emerald-500/30"
-                              : "bg-[#182234] text-slate-300 border border-slate-700"
-                          }`}>
-                            {doorStatus === "UNLOCKED" ? (
-                              <Unlock className="w-10 h-10 text-emerald-500" />
-                            ) : (
-                              <Lock className="w-10 h-10 text-slate-200" />
-                            )}
-                          </div>
-
-                          <p className="text-sm font-bold text-foreground">
-                            {t("checkin.doorStatusLabel")} <span className={doorStatus === "UNLOCKED" ? "text-emerald-500" : "text-slate-400 font-extrabold"}>{doorStatus === "UNLOCKED" ? t("checkin.doorUnlocked") : "LOCKED"}</span>
-                          </p>
-                        </div>
-
-                        <Button
-                          onClick={handleSimulateUnlock}
-                          disabled={unlocking}
-                          className="bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-xs font-extrabold px-8 py-3.5 gap-2 shadow-lg shadow-blue-500/25 cursor-pointer"
-                        >
-                          {unlocking ? (
-                            <>
-                              <RefreshCw className="w-4 h-4 animate-spin" /> {t("checkin.unlocking")}
-                            </>
-                          ) : (
-                            <>
-                              {t("checkin.simulateUnlock")} <KeyRound className="w-4 h-4" />
-                            </>
-                          )}
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
                 </div>
               )}
             </div>

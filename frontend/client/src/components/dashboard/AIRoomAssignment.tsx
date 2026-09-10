@@ -84,7 +84,7 @@ export default function AIRoomAssignment() {
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="text-sm font-semibold flex items-center gap-2">
-              <ArrowRightLeft className="h-4 w-4 text-blue-500" />
+              <ArrowRightLeft className="h-4 w-4 text-[#8B6748]" />
               AI Room Assignment Suggestions
               <Badge variant="outline" className="text-[10px]">Beta</Badge>
             </CardTitle>

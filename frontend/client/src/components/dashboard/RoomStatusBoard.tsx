@@ -55,7 +55,7 @@ interface RoomStatusBoardProps {
 
 const statusConfig: Record<string, { color: string; bg: string; border: string; key: string; dotColor: string; label?: string }> = {
   vacant: { color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/30", key: "vacant", dotColor: "#10b981", label: "Vacant" },
-  occupied: { color: "text-blue-600 dark:text-blue-400", bg: "bg-blue-500/10", border: "border-blue-500/30", key: "occupied", dotColor: "#3b82f6", label: "Occupied" },
+  occupied: { color: "text-[#8B6748]", bg: "bg-[#F3EDE4]", border: "border-[#C4A882]", key: "occupied", dotColor: "#8B6748", label: "Occupied" },
   dirty: { color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/30", key: "dirty", dotColor: "#f59e0b", label: "Dirty" },
   maintenance: { color: "text-red-600 dark:text-red-400", bg: "bg-red-500/10", border: "border-red-500/30", key: "maintenance", dotColor: "#ef4444", label: "Out of Order / Maintenance" },
   reserved: { color: "text-purple-600 dark:text-purple-400", bg: "bg-purple-500/10", border: "border-purple-500/30", key: "reserved", dotColor: "#a855f7", label: "Reserved" },
@@ -283,14 +283,14 @@ export default function RoomStatusBoard({ rooms, onRoomClick }: RoomStatusBoardP
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <CardTitle className="text-lg font-bold flex items-center gap-2 text-foreground">
-              <Bed className="h-5 w-5 text-sky-600 dark:text-sky-400" />
+              <Bed className="h-5 w-5 text-[#8B6748]" />
               {t("dashboard.roomStatusBoard")}
             </CardTitle>
-            <div className="flex items-center gap-1.5 rounded-full bg-sky-50 dark:bg-sky-950/60 px-2.5 py-0.5 text-xs font-semibold text-sky-700 dark:text-sky-300 border border-sky-200/60 dark:border-sky-800/60">
+            <div className="flex items-center gap-1.5 rounded-full bg-[#F3EDE4] px-2.5 py-0.5 text-xs font-semibold text-[#8B6748] border border-[#C4A882]">
               <Sparkles className="h-3 w-3" />
               {t("dashboard.roomsCount", { count: sortedRooms.length })}
             </div>
-            <Button size="sm" onClick={openAddRoom} className="h-7 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-3">
+            <Button size="sm" onClick={openAddRoom} className="h-7 rounded-lg bg-[#8B6748] hover:bg-[#7A5A3C] text-white text-xs font-semibold px-3">
               <Plus className="h-3.5 w-3.5 mr-1" />
               Add Room
             </Button>
@@ -310,13 +310,9 @@ export default function RoomStatusBoard({ rooms, onRoomClick }: RoomStatusBoardP
                 className="bg-transparent text-xs font-semibold text-foreground focus:outline-none cursor-pointer pr-1"
                 aria-label="Order rooms"
               >
-                <option value="floor-asc" className="bg-card text-foreground">Floor & Room (1 → 150)</option>
-                <option value="floor-desc" className="bg-card text-foreground">Floor & Room (150 → 1)</option>
-                <option value="room-asc" className="bg-card text-foreground">Room # (Low to High)</option>
-                <option value="room-desc" className="bg-card text-foreground">Room # (High to Low)</option>
+                <option value="floor-asc" className="bg-card text-foreground">Floor & Room (Default)</option>
                 <option value="rate-asc" className="bg-card text-foreground">Rate (Low to High)</option>
                 <option value="rate-desc" className="bg-card text-foreground">Rate (High to Low)</option>
-                <option value="status" className="bg-card text-foreground">Status (Vacant, Occupied...)</option>
               </select>
             </div>
 
@@ -460,7 +456,7 @@ export default function RoomStatusBoard({ rooms, onRoomClick }: RoomStatusBoardP
                         {vacantCount} {t("dashboard.vacant").toLowerCase()}
                       </span>
                       <span>•</span>
-                      <span className="text-blue-600 dark:text-blue-400 font-medium">
+                      <span className="text-[#8B6748] font-medium">
                         {occupiedCount} {t("dashboard.occupied").toLowerCase()}
                       </span>
                       {dirtyCount > 0 && (
@@ -579,8 +575,8 @@ export default function RoomStatusBoard({ rooms, onRoomClick }: RoomStatusBoardP
                       animate="show"
                       className={
                         viewMode === "compact"
-                          ? "grid grid-cols-2 min-[440px]:grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-2 sm:gap-2.5"
-                          : "grid grid-cols-1 min-[360px]:grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-3 sm:gap-3.5"
+                          ? "grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-2 sm:gap-2.5"
+                          : "grid grid-cols-2 xs:grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-2.5 sm:gap-3.5"
                       }
                     >
                       {floorRooms.map((room) => {
@@ -657,9 +653,9 @@ export default function RoomStatusBoard({ rooms, onRoomClick }: RoomStatusBoardP
 
                             {/* Bottom Details */}
                             <div className="space-y-1.5 pt-1.5 border-t border-border/50">
-                              <div className="flex items-center justify-between gap-1.5 min-w-0">
+                              <div className="flex flex-wrap items-center justify-between gap-1 min-w-0">
                                 <Badge
-                                  className="text-[10px] px-1.5 sm:px-2 py-0.5 font-semibold capitalize shrink-0 border-0"
+                                  className="text-[9px] sm:text-[10px] px-1 sm:px-1.5 py-0.5 font-semibold capitalize shrink-0 border-0 truncate max-w-[90px]"
                                   style={{
                                     backgroundColor: `${config.dotColor}18`,
                                     color: config.dotColor,
@@ -667,7 +663,7 @@ export default function RoomStatusBoard({ rooms, onRoomClick }: RoomStatusBoardP
                                 >
                                   {sKey === "maintenance" ? "Out of Order" : t(`dashboard.${config.key}`)}
                                 </Badge>
-                                <span className="text-xs sm:text-sm font-bold text-foreground shrink-0">
+                                <span className="text-xs sm:text-sm font-bold text-foreground shrink-0 whitespace-nowrap">
                                   ₹{Number(room.rate).toLocaleString()}
                                 </span>
                               </div>
@@ -678,7 +674,7 @@ export default function RoomStatusBoard({ rooms, onRoomClick }: RoomStatusBoardP
                                   <span>{room.capacity}</span>
                                 </div>
                                 <div
-                                  className="flex items-center gap-0.5 font-medium truncate"
+                                  className="flex items-center gap-0.5 font-medium truncate max-w-[95px]"
                                   style={{ color: config.dotColor }}
                                 >
                                   <StatusIcon className="h-3 w-3 shrink-0" />
@@ -779,7 +775,7 @@ export default function RoomStatusBoard({ rooms, onRoomClick }: RoomStatusBoardP
               </Button>
               <Button
                 type="submit"
-                className="h-11 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6"
+                className="h-11 rounded-2xl bg-[#8B6748] hover:bg-[#7A5A3C] text-white font-semibold px-6"
                 disabled={createRoomM.isPending || updateRoomM.isPending}
               >
                 {createRoomM.isPending || updateRoomM.isPending ? "Saving..." : editingRoom ? "Save Changes" : "Create Room"}

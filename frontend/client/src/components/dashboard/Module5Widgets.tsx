@@ -70,8 +70,8 @@ export default function Module5Widgets() {
         total: roomsQ.data?.items?.length ?? 0,
       }),
       icon: BedDouble,
-      color: "text-sky-600",
-      bg: "bg-sky-50",
+      color: "text-[#8B6748]",
+      bg: "bg-[#F3EDE4]",
       loading: roomsQ.isLoading,
     },
     {

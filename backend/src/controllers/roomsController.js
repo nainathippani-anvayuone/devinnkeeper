@@ -1,4 +1,6 @@
 import { prisma } from '../utils/db.js';
+import { createNotification, NotificationType, NotificationPriority } from '../utils/notificationService.js';
+
 
 function paginate(data, page, limit) {
   const total = data.length;
@@ -222,6 +224,21 @@ export async function markRoomClean(req, res) {
         cleaningNotes: notes || null,
       },
     });
+
+    try {
+      await createNotification({
+        type: NotificationType.ROOM_CLEAN,
+        title: `Room ${room.room_number} Clean`,
+        message: `Room ${room.room_number} has been marked clean.`,
+        targetRoles: ['FRONT_DESK', 'MANAGER', 'ADMIN'],
+        priority: NotificationPriority.NORMAL,
+        roomId: room.id,
+        metadata: { roomNumber: room.room_number }
+      });
+    } catch (e) {
+      console.error('Room clean notification error:', e);
+    }
+
   } catch (err) {
     console.error('Failed to mark room clean:', err);
     res.status(500).json({
@@ -250,6 +267,21 @@ export async function markRoomDirty(req, res) {
         roomNumber: room.room_number,
       },
     });
+
+    try {
+      await createNotification({
+        type: NotificationType.ROOM_DIRTY,
+        title: `Room ${room.room_number} Marked Dirty`,
+        message: `Room ${room.room_number} needs cleaning.`,
+        targetRoles: ['HOUSEKEEPING', 'MANAGER', 'ADMIN'],
+        priority: NotificationPriority.HIGH,
+        roomId: room.id,
+        metadata: { roomNumber: room.room_number }
+      });
+    } catch (e) {
+      console.error('Room dirty notification error:', e);
+    }
+
   } catch (err) {
     console.error('Failed to mark room dirty:', err);
     res.status(500).json({

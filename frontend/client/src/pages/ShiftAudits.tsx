@@ -76,7 +76,7 @@ export default function ShiftAuditsPage() {
                     <TableCell>
                       <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium border ${
                         (r.status || '').toLowerCase() === 'open' 
-                          ? 'bg-blue-500/10 text-blue-600 border-blue-500/20' 
+                          ? 'bg-[#F3EDE4] text-[#8B6748] border-[#C4A882]' 
                           : 'bg-slate-500/10 text-slate-600 border-slate-500/20'
                       }`}>
                         {(r.status || '').toLowerCase() === 'open' ? t("common.open", "Open") : t("common.closed", "Closed")}
@@ -136,7 +136,7 @@ export default function ShiftAuditsPage() {
                 <Button type="button" variant="outline" className="h-11 rounded-2xl border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-medium px-6 shadow-2xs cursor-pointer" onClick={()=>setDialogOpen(false)}>
                   {t("common.cancel")}
                 </Button>
-                <Button type="submit" className="h-11 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 shadow-md shadow-blue-500/20" disabled={create.isPending || update.isPending}>
+                <Button type="submit" className="h-11 rounded-2xl bg-[#8B6748] hover:bg-[#7A5A3C] text-white font-semibold px-6 shadow-md shadow-[#8B6748]/20" disabled={create.isPending || update.isPending}>
                   {create.isPending || update.isPending ? t("common.saving") : t("shiftAudits.saveAudit")}
                 </Button>
               </div>

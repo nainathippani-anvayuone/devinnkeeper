@@ -1,5 +1,6 @@
 import { prisma } from '../utils/db.js';
 import { sendCheckInEmail } from '../utils/emailNotifier.js';
+import { createNotification, NotificationType, NotificationPriority } from '../utils/notificationService.js';
 
 function paginate(data, page, limit) {
   const total = data.length;
@@ -249,6 +250,26 @@ export async function createReservation(req, res) {
     }
 
     res.status(201).json(reservation);
+
+    // Fire NEW_RESERVATION notification (after response sent so client isn't delayed)
+    try {
+      const gName = reservation.guest
+        ? `${reservation.guest.firstName} ${reservation.guest.lastName}`.trim()
+        : (firstName && lastName ? `${firstName} ${lastName}`.trim() : 'Guest');
+      const roomLabel = targetRoomId ? `Room ${targetRoomId}` : '';
+      await createNotification({
+        type: NotificationType.NEW_RESERVATION,
+        title: 'New Reservation',
+        message: `New reservation for ${gName}${roomLabel ? ` – ${roomLabel}` : ''}`,
+        priority: NotificationPriority.NORMAL,
+        guestId: reservation.guestId,
+        reservationId: reservation.id,
+        roomId: reservation.roomId,
+        metadata: { guestName: gName, roomId: reservation.roomId, reservationId: reservation.id },
+      });
+    } catch (notifErr) {
+      console.error('[reservationController] NEW_RESERVATION notification failed:', notifErr.message);
+    }
   } catch (err) {
     console.error('createReservation error:', err);
     res.status(500).json({ error: 'An internal error occurred while processing your request.' });
@@ -386,6 +407,61 @@ export async function updateReservation(req, res) {
     }
 
     res.json(reservation);
+
+    // Fire notifications based on status change
+    try {
+      const gName = reservation.guest
+        ? `${reservation.guest.firstName} ${reservation.guest.lastName}`.trim()
+        : 'Guest';
+      const roomObj = reservation.roomId ? await prisma.room.findUnique({ where: { id: reservation.roomId } }) : null;
+      const roomLabel = roomObj ? `Room ${roomObj.room_number}` : (reservation.roomId ? `Room ${reservation.roomId}` : 'the hotel');
+
+      if (updateData.status === 'checked_out') {
+        await createNotification({
+          type: NotificationType.GUEST_CHECKED_OUT,
+          title: 'Guest Checked Out',
+          message: `${gName} has checked out of ${roomLabel}`,
+          priority: NotificationPriority.NORMAL,
+          guestId: reservation.guestId,
+          reservationId: reservation.id,
+          roomId: reservation.roomId,
+          metadata: { guestName: gName, roomId: reservation.roomId, reservationId: reservation.id },
+        });
+        // Room is now dirty after checkout
+        await createNotification({
+          type: NotificationType.ROOM_DIRTY,
+          title: 'Room Requires Cleaning',
+          message: `${roomLabel} is dirty and requires housekeeping after checkout`,
+          priority: NotificationPriority.NORMAL,
+          roomId: reservation.roomId,
+          metadata: { roomId: reservation.roomId, roomNumber: roomObj?.room_number },
+        });
+      } else if (updateData.status === 'checked_in') {
+        await createNotification({
+          type: NotificationType.GUEST_CHECKED_IN,
+          title: 'Guest Checked In',
+          message: `${gName} has checked into ${roomLabel}`,
+          priority: NotificationPriority.NORMAL,
+          guestId: reservation.guestId,
+          reservationId: reservation.id,
+          roomId: reservation.roomId,
+          metadata: { guestName: gName, roomId: reservation.roomId, reservationId: reservation.id },
+        });
+      } else if (updateData.status === 'cancelled') {
+        await createNotification({
+          type: NotificationType.RESERVATION_CANCELLED,
+          title: 'Reservation Cancelled',
+          message: `Reservation for ${gName} has been cancelled`,
+          priority: NotificationPriority.HIGH,
+          guestId: reservation.guestId,
+          reservationId: reservation.id,
+          roomId: reservation.roomId,
+          metadata: { guestName: gName, roomId: reservation.roomId, reservationId: reservation.id },
+        });
+      }
+    } catch (notifErr) {
+      console.error('[reservationController] update notification failed:', notifErr.message);
+    }
   } catch (err) {
     console.error('updateReservation error:', err);
     res.status(500).json({ error: 'An internal error occurred while processing your request.' });

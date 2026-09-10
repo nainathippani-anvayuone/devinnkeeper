@@ -231,11 +231,11 @@ async function main() {
 
   // ─── Notifications ────────────────────────────────────────
   const notifData = [
-    { type: 'arrival', title: 'New Arrival Today', message: 'Arjun Sharma checking in to Room 101', isRead: false },
-    { type: 'payment', title: 'Payment Received', message: '₹7,500 received for Reservation #1', isRead: false },
-    { type: 'maintenance', title: 'Maintenance Alert', message: 'Door lock malfunction reported in Room 116 – urgent', isRead: false },
-    { type: 'housekeeping', title: 'Room Ready', message: 'Room 103 has been cleaned and inspected', isRead: true },
-    { type: 'system', title: 'Daily Report Available', message: 'August 5th occupancy report is ready for download', isRead: true },
+    { type: 'arrival', title: 'New Arrival Today', message: 'Arjun Sharma checking in to Room 101', priority: 'NORMAL' },
+    { type: 'payment', title: 'Payment Received', message: '₹7,500 received for Reservation #1', priority: 'HIGH' },
+    { type: 'maintenance', title: 'Maintenance Alert', message: 'Door lock malfunction reported in Room 116 – urgent', priority: 'URGENT' },
+    { type: 'housekeeping', title: 'Room Ready', message: 'Room 103 has been cleaned and inspected', priority: 'LOW', readAt: new Date() },
+    { type: 'system', title: 'Daily Report Available', message: 'August 5th occupancy report is ready for download', priority: 'LOW', readAt: new Date() },
   ];
   for (const n of notifData) {
     await prisma.appNotification.create({ data: n });

@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import { createNotification, NotificationType, NotificationPriority } from '../utils/notificationService.js';
 const prisma = new PrismaClient();
 
 function paginate(data, page, limit) {
@@ -34,6 +35,25 @@ export async function createMaintenance(req, res) {
       notes: req.body.notes || null
     }});
     res.status(201).json(item);
+
+    // Fire MAINTENANCE_CREATED notification
+    try {
+      const room = item.roomId ? await prisma.room.findUnique({ where: { id: item.roomId } }) : null;
+      const roomLabel = room ? `Room ${room.room_number}` : (item.roomId ? `Room ${item.roomId}` : '');
+      const priority = item.priority === 'urgent' || item.priority === 'high'
+        ? NotificationPriority.HIGH
+        : NotificationPriority.NORMAL;
+      await createNotification({
+        type: NotificationType.MAINTENANCE_CREATED,
+        title: 'Maintenance Request Created',
+        message: `Maintenance required${roomLabel ? ` for ${roomLabel}` : ''}: ${item.issue}${item.priority !== 'normal' ? ` (${item.priority} priority)` : ''}`,
+        priority,
+        roomId: item.roomId,
+        metadata: { roomId: item.roomId, roomNumber: room?.room_number, issue: item.issue, maintenanceId: item.id },
+      });
+    } catch (notifErr) {
+      console.error('[maintenanceController] MAINTENANCE_CREATED notification failed:', notifErr.message);
+    }
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -51,6 +71,35 @@ export async function updateMaintenance(req, res) {
       }
     });
     res.json(item);
+
+    // Fire notification based on status change
+    try {
+      const room = item.roomId ? await prisma.room.findUnique({ where: { id: item.roomId } }) : null;
+      const roomLabel = room ? `Room ${room.room_number}` : (item.roomId ? `Room ${item.roomId}` : '');
+      const newStatus = (req.body.status || '').toLowerCase();
+
+      if (newStatus === 'completed' || newStatus === 'done' || newStatus === 'resolved') {
+        await createNotification({
+          type: NotificationType.MAINTENANCE_COMPLETED,
+          title: 'Maintenance Completed',
+          message: `Maintenance completed${roomLabel ? ` for ${roomLabel}` : ''}: ${item.issue}`,
+          priority: NotificationPriority.NORMAL,
+          roomId: item.roomId,
+          metadata: { roomId: item.roomId, roomNumber: room?.room_number, issue: item.issue, maintenanceId: item.id },
+        });
+      } else if (newStatus === 'in_progress' || newStatus === 'in-progress' || newStatus === 'assigned') {
+        await createNotification({
+          type: NotificationType.MAINTENANCE_ASSIGNED,
+          title: 'Maintenance In Progress',
+          message: `Maintenance in progress${roomLabel ? ` for ${roomLabel}` : ''}: ${item.issue}`,
+          priority: NotificationPriority.NORMAL,
+          roomId: item.roomId,
+          metadata: { roomId: item.roomId, roomNumber: room?.room_number, issue: item.issue, maintenanceId: item.id },
+        });
+      }
+    } catch (notifErr) {
+      console.error('[maintenanceController] update notification failed:', notifErr.message);
+    }
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

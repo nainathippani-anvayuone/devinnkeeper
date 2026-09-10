@@ -44,7 +44,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       <DialogContent className="max-w-md sm:max-w-lg rounded-3xl p-6 shadow-2xl bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 border border-slate-200 dark:border-slate-800 z-[9999] opacity-100">
         <DialogHeader className="pb-3 border-b">
           <DialogTitle className="flex items-center gap-2 text-xl font-bold">
-            <Settings className="h-5 w-5 text-sky-600" />
+            <Settings className="h-5 w-5 text-[#8B6748]" />
             {t("settings.title")}
           </DialogTitle>
           <DialogDescription className="text-xs text-muted-foreground">
@@ -56,7 +56,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
           {/* User Account Details */}
           <div>
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
-              <User className="h-4 w-4 text-sky-600" />
+              <User className="h-4 w-4 text-[#8B6748]" />
               {t("settings.accountProfile")}
             </h3>
             <div className="flex items-center justify-between p-4 rounded-2xl bg-accent/40 border">

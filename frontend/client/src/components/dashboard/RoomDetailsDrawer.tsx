@@ -56,7 +56,7 @@ interface RoomDetailsDrawerProps {
 
 const statusColors: Record<string, string> = {
   vacant: "bg-emerald-500",
-  occupied: "bg-blue-500",
+  occupied: "bg-[#8B6748]",
   dirty: "bg-amber-500",
   maintenance: "bg-red-500",
   reserved: "bg-purple-500",
@@ -227,9 +227,9 @@ export default function RoomDetailsDrawer({ isOpen, onClose, room, guest, reserv
             {/* BOOKING FORM */}
             {activeStep === "BOOKING" && isVacant && (
               <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} className="space-y-4">
-                <div className="flex items-center justify-between rounded-xl bg-sky-50 border border-sky-200 p-3">
-                  <div className="flex items-center gap-2 text-sky-800 text-sm font-semibold">
-                    <Calendar className="h-5 w-5 text-sky-600" /> {t("roomDrawer.bookRoomTitle", { number: room?.number })}
+                <div className="flex items-center justify-between rounded-xl bg-[#F3EDE4] border border-[#C4A882] p-3">
+                  <div className="flex items-center gap-2 text-[#3F352D] text-sm font-semibold">
+                    <Calendar className="h-5 w-5 text-[#8B6748]" /> {t("roomDrawer.bookRoomTitle", { number: room?.number })}
                   </div>
                   <Badge variant="outline" className="bg-white">{t("roomDrawer.directReservation")}</Badge>
                 </div>
@@ -291,14 +291,14 @@ export default function RoomDetailsDrawer({ isOpen, onClose, room, guest, reserv
                     </div>
                     <div className="flex justify-between text-slate-700 font-bold border-t pt-1 mt-1">
                       <span>{t("roomDrawer.totalCharges")}</span>
-                      <span className="text-sky-700">₹{(room?.rate || 0) * (parseInt(nights, 10) || 1)}</span>
+                      <span className="text-[#8B6748]">₹{(room?.rate || 0) * (parseInt(nights, 10) || 1)}</span>
                     </div>
                   </div>
 
                   <Button
                     onClick={handleBookRoom}
                     disabled={isSubmitting}
-                    className="w-full bg-sky-600 hover:bg-sky-700 text-white gap-2"
+                    className="w-full bg-[#8B6748] hover:bg-[#7A5A3C] text-white gap-2"
                   >
                     <CheckCircle2 className="h-4 w-4" /> {t("roomDrawer.confirmAndBook")}
                   </Button>
@@ -311,7 +311,7 @@ export default function RoomDetailsDrawer({ isOpen, onClose, room, guest, reserv
               <>
                 <div>
                   <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-                    <Bed className="h-4 w-4 text-sky-600" />
+                    <Bed className="h-4 w-4 text-[#8B6748]" />
                     {t("roomDrawer.roomOverview")}
                   </h3>
                   <div className="grid grid-cols-2 gap-3">
@@ -377,7 +377,7 @@ export default function RoomDetailsDrawer({ isOpen, onClose, room, guest, reserv
               {isVacant && (
                 <Button
                   onClick={() => setActiveStep("BOOKING")}
-                  className="flex-1 flex items-center justify-center gap-2 bg-sky-600 hover:bg-sky-700 text-white py-2.5 font-semibold text-sm rounded-xl shadow-md"
+                  className="flex-1 flex items-center justify-center gap-2 bg-[#8B6748] hover:bg-[#7A5A3C] text-white py-2.5 font-semibold text-sm rounded-xl shadow-md"
                 >
                   <Calendar className="h-4 w-4" /> {t("roomDrawer.bookThisRoom")}
                 </Button>

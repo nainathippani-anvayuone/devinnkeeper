@@ -7,6 +7,10 @@ export function setSocketIo(socketServer) {
   io = socketServer;
 }
 
+export function getSocketIo() {
+  return io;
+}
+
 export function emitRealtimeUpdate(event = 'module2:update', payload = {}) {
   if (io) {
     io.emit(event, payload);

@@ -10,25 +10,31 @@ import Guests from "@/pages/Guests";
 import Housekeeping from "@/pages/Housekeeping";
 import Maintenance from "@/pages/Maintenance";
 import CheckInVerification from "@/pages/CheckInVerification";
+import DigitalKeyPage from "@/pages/DigitalKeyPage";
 import { Redirect, Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { AuthProvider, useAuthContext } from "./contexts/AuthContext";
 import DashboardLayout from "./components/DashboardLayout";
 import Dashboard from "./pages/Dashboard";
+import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/auth/LoginPage";
 import SignupPage from "./pages/auth/SignupPage";
 import ForgotPasswordPage from "./pages/auth/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/auth/ResetPasswordPage";
+
+import { NotificationProvider } from "./contexts/NotificationContext";
+import { NotificationsPage } from "./pages/Notifications";
 
 function ProtectedApp() {
   const { isAuthenticated, loading } = useAuthContext();
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50 text-slate-600">
-        <div className="rounded-2xl border border-slate-200 bg-white/80 px-6 py-5 shadow-sm backdrop-blur">
-          Preparing your workspace...
+      <div className="flex min-h-screen items-center justify-center bg-slate-900 text-slate-200">
+        <div className="rounded-2xl border border-slate-700 bg-slate-800/80 px-6 py-5 shadow-lg backdrop-blur flex items-center gap-3">
+          <div className="h-5 w-5 animate-spin rounded-full border-2 border-[#B89572] border-t-transparent" />
+          <span>Preparing your workspace...</span>
         </div>
       </div>
     );
@@ -49,9 +55,11 @@ function ProtectedApp() {
         <Route path={"/shift-audits"} component={ShiftAudits} />
         <Route path={"/reservations"} component={Reservations} />
         <Route path={"/checkin"} component={CheckInVerification} />
+        <Route path={"/digital-key"} component={DigitalKeyPage} />
         <Route path={"/guests"} component={Guests} />
         <Route path={"/housekeeping"} component={Housekeeping} />
         <Route path={"/maintenance"} component={Maintenance} />
+        <Route path={"/notifications"} component={NotificationsPage} />
         <Route path={"/404"} component={NotFound} />
         <Route component={NotFound} />
       </Switch>
@@ -63,10 +71,10 @@ function PublicRoutes() {
   return (
     <Switch>
       <Route path="/login" component={LoginPage} />
+      <Route path="/register" component={SignupPage} />
       <Route path="/signup" component={SignupPage} />
       <Route path="/forgot-password" component={ForgotPasswordPage} />
       <Route path="/reset-password" component={ResetPasswordPage} />
-      <Route path="/" component={ProtectedApp} />
       <Route path="/dashboard" component={ProtectedApp} />
       <Route path="/payments" component={ProtectedApp} />
       <Route path="/vehicles" component={ProtectedApp} />
@@ -74,9 +82,12 @@ function PublicRoutes() {
       <Route path="/shift-audits" component={ProtectedApp} />
       <Route path="/reservations" component={ProtectedApp} />
       <Route path="/checkin" component={ProtectedApp} />
+      <Route path="/digital-key" component={ProtectedApp} />
       <Route path="/guests" component={ProtectedApp} />
       <Route path="/housekeeping" component={ProtectedApp} />
       <Route path="/maintenance" component={ProtectedApp} />
+      <Route path="/notifications" component={ProtectedApp} />
+      <Route path="/" component={LandingPage} />
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>
@@ -90,7 +101,9 @@ function App() {
         <TooltipProvider>
           <Toaster richColors closeButton />
           <AuthProvider>
-            <PublicRoutes />
+            <NotificationProvider>
+              <PublicRoutes />
+            </NotificationProvider>
           </AuthProvider>
         </TooltipProvider>
       </ThemeProvider>
@@ -99,3 +112,4 @@ function App() {
 }
 
 export default App;
+

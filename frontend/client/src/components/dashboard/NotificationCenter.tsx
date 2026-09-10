@@ -29,8 +29,8 @@ const typeColors: Record<string, string> = {
   arrival: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
   departure: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
   maintenance: "bg-red-500/10 text-red-600 dark:text-red-400",
-  charge: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
-  payment: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
+  charge: "bg-[#F3EDE4] text-[#8B6748]",
+  payment: "bg-[#F3EDE4] text-[#8B6748]",
   housekeeping: "bg-teal-500/10 text-teal-600 dark:text-teal-400",
   system: "bg-gray-500/10 text-gray-600 dark:text-gray-400",
   ai_insight: "bg-purple-500/10 text-purple-600 dark:text-purple-400",
@@ -131,7 +131,7 @@ export default function NotificationCenter({ onClose }: NotificationCenterProps)
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="text-sm font-semibold flex items-center gap-2">
-              <Bell className="h-4 w-4 text-sky-600" />
+              <Bell className="h-4 w-4 text-[#8B6748]" />
               {t("notifications.title")}
               {unreadCount > 0 && (
                 <Badge variant="destructive" className="text-xs ml-1">
@@ -195,7 +195,7 @@ export default function NotificationCenter({ onClose }: NotificationCenterProps)
                         </p>
                       </div>
                       {!isRead && (
-                        <div className="h-2 w-2 rounded-full bg-sky-500 shrink-0 mt-1" />
+                        <div className="h-2 w-2 rounded-full bg-[#8B6748] shrink-0 mt-1" />
                       )}
                     </motion.div>
                   );
