@@ -182,7 +182,23 @@ export default function CheckInVerification() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const targetResId = params.get("resId") || params.get("reservationId");
-    fetchReservations(targetResId);
+    const checkInToken = params.get("token");
+    if (checkInToken) {
+      sessionStorage.setItem("innkeeper_checkin_token", checkInToken);
+    }
+    if (targetResId && checkInToken) {
+      api.get("/checkin/access", { params: { resId: targetResId, token: checkInToken } })
+        .then((res) => {
+          const reservation = res.data?.reservation;
+          if (reservation) {
+            setReservations([reservation]);
+            setSelectedResId(String(reservation.id));
+          }
+        })
+        .catch((err) => toast.error(err?.response?.data?.error || "This check-in link is invalid or expired."));
+    } else {
+      fetchReservations(targetResId);
+    }
   }, []);
 
   const fetchReservations = async (preferredResId?: string | null) => {
@@ -286,6 +302,7 @@ export default function CheckInVerification() {
 
           try {
             const verifyResponse = await api.post("/checkin/payment/verify", {
+              reservationId: paymentData.reservation?.id,
               razorpayOrderId: orderId,
               razorpayPaymentId: paymentId,
               razorpaySignature: signature,
@@ -410,23 +427,8 @@ export default function CheckInVerification() {
     e.target.value = "";
   };
 
-  // Real-Time Facial Image Feature Comparison Algorithm
-  const computeRealtimeFacialMatch = async (img1: string, img2: string): Promise<{ isMatch: boolean; score: number }> => {
-    if (!img1 || !img2) return { isMatch: false, score: 35 };
-    const s1 = img1.slice(0, 1000);
-    const s2 = img2.slice(0, 1000);
-    let matches = 0;
-    const minLen = Math.min(s1.length, s2.length);
-    for (let i = 0; i < minLen; i += 3) {
-      if (s1[i] === s2[i]) matches++;
-    }
-    const similarity = Math.round((matches / (minLen / 3)) * 100);
-    const isMatch = similarity >= 75;
-    return { isMatch, score: similarity };
-  };
-
-  // Process ID Verification
-  const handleVerifyId = async (forceFail = false, forcePass = false) => {
+  // Process Driving Licence verification on the backend.
+  const handleVerifyId = async () => {
     const targetResId = selectedResId || (reservations.length > 0 ? String(reservations[0].id) : "");
     if (!targetResId) {
       toast.error("Please select a reservation first");
@@ -440,16 +442,8 @@ export default function CheckInVerification() {
       toast.error("Selected reservation is cancelled or inactive for check-in.");
       return;
     }
-    if (!dlImage && !selfieImage) {
-      toast.error("Please upload Driver License and capture Selfie photo before submitting.");
-      return;
-    }
     if (!dlImage) {
       toast.error("Please upload Driver License photo before submitting.");
-      return;
-    }
-    if (!selfieImage) {
-      toast.error("Please capture or upload Selfie photo before submitting.");
       return;
     }
 
@@ -589,15 +583,24 @@ export default function CheckInVerification() {
         return;
       }
 
+      if (!data.digitalPin || !data.lockId || !data.keyPayload) {
+        toast.error("The server did not return a valid digital key.");
+        return;
+      }
       setStep(3);
       setCheckInCompletedAnimation(true);
-      setDigitalKeyGenerated(false);
+      setKeyDetails({ digitalPin: data.digitalPin, lockId: data.lockId, keyPayload: data.keyPayload });
+      setDigitalKeyGenerated(true);
       toast.success("Check-in completed successfully!");
 
       qc.invalidateQueries({ queryKey: ["reservations"] });
       qc.invalidateQueries({ queryKey: ["rooms"] });
       qc.invalidateQueries({ queryKey: ["dashboard"] });
-      fetchReservations();
+      if (sessionStorage.getItem("innkeeper_checkin_token")) {
+        setReservations([data.reservation]);
+      } else {
+        fetchReservations();
+      }
     } catch (err: any) {
       setCompletingCheckIn(false);
       toast.error(err?.response?.data?.error || "Network error while completing check-in.");
@@ -613,18 +616,11 @@ export default function CheckInVerification() {
 
       const data = res.data;
       setGeneratingKey(false);
+      if (!data.success || !data.digitalPin || !data.lockId || !data.keyPayload) {
+        throw new Error(data.error || "The server did not return a valid digital key.");
+      }
 
-      const resIdNum = Number(selectedResId) || 1;
-      const roomNum = selectedReservation?.roomNumber || selectedReservation?.room?.room_number || selectedReservation?.room?.number || selectedReservation?.roomId || "101";
-      const uniquePin = data.digitalPin || String((resIdNum * 147382 + 582910) % 900000 + 100000);
-
-      const keyObj = {
-        digitalPin: uniquePin,
-        lockId: data.lockId || `SL-ROOM-${roomNum}`,
-        keyPayload: data.keyPayload || { encryptedKey: `a8f3b2e9c1d4e7f0a8b9c0d1e2f3a4b${resIdNum}` }
-      };
-
-      setKeyDetails(keyObj);
+      setKeyDetails({ digitalPin: data.digitalPin, lockId: data.lockId, keyPayload: data.keyPayload });
       setDigitalKeyGenerated(true);
       toast.success("Digital Room Key & Access PIN generated!");
 
@@ -634,18 +630,9 @@ export default function CheckInVerification() {
         qc.invalidateQueries({ queryKey: ["rooms"] });
         qc.invalidateQueries({ queryKey: ["dashboard"] });
       }
-    } catch (err) {
+    } catch (err: any) {
       setGeneratingKey(false);
-      const resIdNum = Number(selectedResId) || 1;
-      const roomNum = selectedReservation?.roomNumber || selectedReservation?.room?.room_number || selectedReservation?.room?.number || selectedReservation?.roomId || "101";
-      const uniquePin = String((resIdNum * 147382 + 582910) % 900000 + 100000);
-      setKeyDetails({
-        digitalPin: uniquePin,
-        lockId: `SL-ROOM-${roomNum}`,
-        keyPayload: { encryptedKey: `a8f3b2e9c1d4e7f0a8b9c0d1e2f3a4b${resIdNum}` }
-      });
-      setDigitalKeyGenerated(true);
-      toast.success("Digital Room Key & Access PIN generated!");
+      toast.error(err?.response?.data?.error || err?.message || "Unable to generate the digital key.");
     }
   };
 
@@ -687,14 +674,14 @@ export default function CheckInVerification() {
   return (
     <div className="space-y-8 max-w-6xl mx-auto pb-12">
       {/* 3-Hour Prior Check-In Notification Banner */}
-      <div className="bg-gradient-to-r from-blue-600/15 via-indigo-600/15 to-purple-600/15 border border-blue-500/30 rounded-2xl p-5 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div className="bg-gradient-to-r from-[#8B6748]/12 via-[#C4A882]/12 to-[#F3EDE4]/40 border border-[#B89572]/40 rounded-2xl p-5 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div className="flex items-center gap-3.5">
-          <div className="h-11 w-11 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold shadow-md shrink-0">
+          <div className="h-11 w-11 rounded-xl bg-[#8B6748] text-white flex items-center justify-center font-bold shadow-md shrink-0">
             <Sparkles className="w-5 h-5 animate-pulse" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">3-Hour Prior Alert System</span>
+              <span className="text-xs font-bold text-[#8B6748] dark:text-[#DDBC9E] uppercase tracking-wider">3-Hour Prior Alert System</span>
               <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
             </div>
             <h3 className="text-sm font-bold text-foreground">{t("checkin.reminderAlertTitle")}</h3>
@@ -708,7 +695,7 @@ export default function CheckInVerification() {
             onClick={() => handleSend3HourReminder()}
             disabled={sendingReminder}
             size="sm"
-            className="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold px-4 py-2 gap-2 shadow-sm cursor-pointer"
+            className="w-full md:w-auto bg-[#8B6748] hover:bg-[#6B563E] text-white rounded-xl text-xs font-semibold px-4 py-2 gap-2 shadow-sm cursor-pointer"
           >
             {sendingReminder ? t("common.submitting") : t("checkin.send3hReminder")}
           </Button>
@@ -718,14 +705,14 @@ export default function CheckInVerification() {
 
 
       {/* Candidate Selection Banner */}
-      <div className="bg-card rounded-2xl border border-blue-200 dark:border-blue-900 p-6 shadow-md space-y-4">
+      <div className="bg-card rounded-2xl border border-[#B89572]/40 dark:border-[#B89572]/40 p-6 shadow-md space-y-4">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
-            <span className="text-xs font-extrabold uppercase tracking-widest text-blue-600 dark:text-blue-400 bg-blue-500/10 px-3 py-1 rounded-full">
+            <span className="text-xs font-extrabold uppercase tracking-widest text-[#8B6748] dark:text-[#DDBC9E] bg-[#F3EDE4]/70 px-3 py-1 rounded-full">
               {t("checkin.step0Title")}
             </span>
             <h3 className="text-lg font-extrabold flex items-center gap-2 text-foreground mt-2">
-              <User className="w-5 h-5 text-blue-600" /> {t("checkin.selectCandidateHeader")}
+              <User className="w-5 h-5 text-[#8B6748]" /> {t("checkin.selectCandidateHeader")}
             </h3>
             <p className="text-xs text-muted-foreground mt-0.5">{t("checkin.selectCandidateSub")}</p>
           </div>
@@ -751,7 +738,7 @@ export default function CheckInVerification() {
                 setCheckInCompletedAnimation(false);
                 setDigitalKeyGenerated(false);
               }}
-              className="bg-card border-2 border-blue-500 rounded-xl px-4 py-3 text-xs font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-blue-600 w-full sm:w-80 shadow-md"
+              className="bg-card border-2 border-[#B89572]/60 rounded-xl px-4 py-3 text-xs font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-[#8B6748] w-full sm:w-80 shadow-md"
             >
               <option value="">{t("checkin.chooseCandidatePlaceholder")}</option>
               {reservations.map((r) => {
@@ -791,12 +778,12 @@ export default function CheckInVerification() {
           isSelectedGuestCheckedIn ? (
             <div className="pt-4">
               <div className="bg-card border border-border rounded-3xl p-8 shadow-xl text-center max-w-md mx-auto space-y-4 animate-in fade-in zoom-in duration-300">
-                <div className="w-16 h-16 rounded-full bg-blue-600 text-white flex items-center justify-center mx-auto shadow-lg shadow-blue-500/30">
+                <div className="w-16 h-16 rounded-full bg-[#8B6748] text-white flex items-center justify-center mx-auto shadow-lg shadow-[#8B6748]/30">
                   <CheckCircle2 className="w-9 h-9" />
                 </div>
 
                 <div>
-                  <span className="text-[11px] font-extrabold tracking-widest uppercase text-blue-600 dark:text-blue-400 bg-blue-500/10 px-3.5 py-1 rounded-full">
+                  <span className="text-[11px] font-extrabold tracking-widest uppercase text-[#8B6748] dark:text-[#DDBC9E] bg-[#F3EDE4]/70 px-3.5 py-1 rounded-full">
                     {t("checkin.completedBadge")}
                   </span>
                   <h3 className="text-xl font-black text-foreground mt-3 leading-tight">
@@ -808,7 +795,7 @@ export default function CheckInVerification() {
                 </div>
 
                 <div className="pt-1">
-                  <span className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-blue-500/10 text-blue-700 dark:text-blue-300 text-xs font-bold border border-blue-500/20">
+                  <span className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#F3EDE4]/70 text-[#8B6748] dark:text-[#DDBC9E] text-xs font-bold border border-[#B89572]/30">
                     ✓ {t("roomDrawer.roomNumber", { number: selectedReservation.roomNumber || selectedReservation.room?.room_number || selectedReservation.room?.number || selectedReservation.roomId || "101" })} · {t("reservations.checkedIn")}
                   </span>
                 </div>
@@ -840,7 +827,7 @@ export default function CheckInVerification() {
             </div>
           ) : null
         ) : (
-          <div className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-700 dark:text-blue-300 text-xs font-bold text-center">
+          <div className="p-4 rounded-xl bg-[#F3EDE4]/70 border border-[#B89572]/30 text-[#8B6748] dark:text-[#DDBC9E] text-xs font-bold text-center">
             {t("checkin.selectCandidateAlert")}
           </div>
         )}
@@ -859,7 +846,7 @@ export default function CheckInVerification() {
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-border pb-5">
                   <div>
                     <h2 className="text-lg font-bold flex items-center gap-2">
-                      <FileBadge className="w-5 h-5 text-blue-500" /> {t("checkin.step1Heading")}
+                      <FileBadge className="w-5 h-5 text-[#8B6748]" /> {t("checkin.step1Heading")}
                     </h2>
                     <p className="text-xs text-muted-foreground">{t("checkin.step1Subtitle")}</p>
                   </div>
@@ -879,7 +866,7 @@ export default function CheckInVerification() {
                         }
                         setVerificationResult(null);
                       }}
-                      className="bg-card border border-border rounded-lg px-3 py-1.5 text-xs font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-72"
+                      className="bg-card border border-border rounded-lg px-3 py-1.5 text-xs font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-[#8B6748] w-full sm:w-72"
                     >
                       {reservations.map((r) => {
                         const name = r.guest ? `${r.guest.firstName} ${r.guest.lastName}` : `Guest #${r.guestId || r.id}`;
@@ -915,7 +902,7 @@ export default function CheckInVerification() {
                     <div className="pt-3">
                       <Button
                         onClick={() => setStep(2)}
-                        className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold px-4 sm:px-6 py-3 shadow-md gap-2 cursor-pointer flex items-center justify-center"
+                        className="w-full sm:w-auto bg-[#8B6748] hover:bg-[#6B563E] text-white rounded-xl text-xs font-bold px-4 sm:px-6 py-3 shadow-md gap-2 cursor-pointer flex items-center justify-center"
                       >
                         <span>కొనసాగించండి: చెల్లింపు ప్రక్రియ (Continue to Step 2: Payment)</span>
                         <ChevronRight className="w-4 h-4 shrink-0" />
@@ -926,7 +913,7 @@ export default function CheckInVerification() {
                   <>
                     {selectedReservation && selectedReservation.verificationStatus === 'REJECTED' && (
                       <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-700 dark:text-rose-300 text-xs font-bold flex items-center justify-between">
-                        <span>✕ Identity Verification Rejected! Faces did not match. Please upload matching photos.</span>
+                        <span>✕ Driving Licence verification failed. Please upload a clear, valid licence that matches the reservation guest.</span>
                       </div>
                     )}
 
@@ -936,9 +923,9 @@ export default function CheckInVerification() {
                   <div className="border border-border rounded-2xl p-5 bg-accent/20 space-y-4">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2 font-bold text-sm">
-                        <FileBadge className="w-4 h-4 text-blue-500" /> {t("checkin.driverLicenseVerification")}
+                        <FileBadge className="w-4 h-4 text-[#8B6748]" /> {t("checkin.driverLicenseVerification")}
                       </div>
-                      {dlImage && <CheckCircle2 className="w-5 h-5 text-blue-500" />}
+                      {dlImage && <CheckCircle2 className="w-5 h-5 text-[#8B6748]" />}
                     </div>
 
                     <div className="relative h-52 border-2 border-dashed border-border rounded-xl flex flex-col items-center justify-center overflow-hidden bg-card">
@@ -970,9 +957,9 @@ export default function CheckInVerification() {
                   <div className="border border-border rounded-2xl p-5 bg-accent/20 space-y-4">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2 font-bold text-sm">
-                        <Camera className="w-4 h-4 text-blue-500" /> {t("checkin.liveSelfieVerification")}
+                        <Camera className="w-4 h-4 text-[#8B6748]" /> {t("checkin.liveSelfieVerification")}
                       </div>
-                      {selfieImage && <CheckCircle2 className="w-5 h-5 text-blue-500" />}
+                      {selfieImage && <CheckCircle2 className="w-5 h-5 text-[#8B6748]" />}
                     </div>
 
                     <div className="relative h-52 border-2 border-dashed border-border rounded-xl flex flex-col items-center justify-center overflow-hidden bg-card">
@@ -991,7 +978,7 @@ export default function CheckInVerification() {
 
                     <div className="grid grid-cols-2 gap-2">
                       {isCameraActive ? (
-                        <Button onClick={captureSelfie} className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-xs">
+                        <Button onClick={captureSelfie} className="w-full bg-[#8B6748] hover:bg-[#6B563E] text-white rounded-xl text-xs font-bold shadow-xs">
                           {t("checkin.snapSelfie")}
                         </Button>
                       ) : (
@@ -1052,7 +1039,7 @@ export default function CheckInVerification() {
                         <Button
                           onClick={() => setStep(2)}
                           title="Proceed to Next Step"
-                          className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold px-4 py-2.5 shrink-0 gap-1.5 shadow-md transition hover:scale-105 flex items-center justify-center cursor-pointer"
+                          className="w-full sm:w-auto bg-[#8B6748] hover:bg-[#6B563E] text-white rounded-xl text-xs font-bold px-4 py-2.5 shrink-0 gap-1.5 shadow-md transition hover:scale-105 flex items-center justify-center cursor-pointer"
                         >
                           <span>{t("checkin.nextStep")}</span>
                           <ChevronRight className="w-4 h-4" />
@@ -1069,10 +1056,10 @@ export default function CheckInVerification() {
                   </div>
                   <Button
                     onClick={() => {
-                      handleVerifyId(false, false);
+                      handleVerifyId();
                     }}
                     disabled={verifying}
-                    className="w-full sm:w-auto h-14 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-base font-extrabold px-10 gap-3 shadow-xl shadow-blue-500/25 cursor-pointer disabled:opacity-50 transition hover:scale-102"
+                    className="w-full sm:w-auto h-14 bg-[#8B6748] hover:bg-[#6B563E] text-white rounded-2xl text-base font-extrabold px-10 gap-3 shadow-xl shadow-[#8B6748]/25 cursor-pointer disabled:opacity-50 transition hover:scale-102"
                   >
                     {verifying ? (
                       <>
@@ -1097,7 +1084,7 @@ export default function CheckInVerification() {
           <div className="flex justify-between items-center pb-1">
             <div>
               <p className="text-xs font-medium text-muted-foreground">
-                Collect payment online via Razorpay, or record cash/card taken at the front desk.
+                Complete the reservation payment securely through Razorpay Checkout.
               </p>
             </div>
             <Button variant="ghost" size="sm" onClick={() => setStep(1)} className="rounded-xl text-xs">
@@ -1149,31 +1136,6 @@ export default function CheckInVerification() {
               )}
             </Button>
 
-            <div className="relative py-1 text-center">
-              <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-dashed border-border" /></div>
-              <span className="relative bg-card px-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">or</span>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <Button
-                type="button"
-                variant="outline"
-                disabled={submittingBooking}
-                onClick={() => handleManualPayment("Cash")}
-                className="h-11 rounded-2xl text-sm font-semibold"
-              >
-                Cash at Desk
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                disabled={submittingBooking}
-                onClick={() => handleManualPayment("Card")}
-                className="h-11 rounded-2xl text-sm font-semibold"
-              >
-                Card at Desk
-              </Button>
-            </div>
           </form>
         </div>
       )}
@@ -1185,7 +1147,7 @@ export default function CheckInVerification() {
               {!checkInCompletedAnimation ? (
                 /* Step 3: Complete Check-In Page (Rendered directly after Step 2 payment) */
                 <div className="bg-card border border-border rounded-3xl p-8 shadow-xl text-center max-w-xl mx-auto space-y-6 animate-in fade-in duration-300">
-                  <div className="w-20 h-20 rounded-full bg-blue-500/10 text-blue-600 flex items-center justify-center mx-auto border border-blue-500/20">
+                  <div className="w-20 h-20 rounded-full bg-[#F3EDE4]/70 text-[#8B6748] flex items-center justify-center mx-auto border border-[#B89572]/30">
                     <CheckCircle2 className="w-10 h-10" />
                   </div>
                   <div>
@@ -1210,7 +1172,7 @@ export default function CheckInVerification() {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">{t("checkin.assignedRoomLabel")}</span>
-                      <span className="font-bold text-blue-600 dark:text-blue-400">
+                      <span className="font-bold text-[#8B6748] dark:text-[#DDBC9E]">
                         {t("dashboard.rooms")} #{selectedReservation.roomNumber || selectedReservation.room?.room_number || selectedReservation.room?.number || selectedReservation.roomId || "101"}
                       </span>
                     </div>
@@ -1219,7 +1181,7 @@ export default function CheckInVerification() {
                   <Button
                     onClick={handleCompleteCheckIn}
                     disabled={completingCheckIn}
-                    className="w-full h-14 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-base font-extrabold shadow-xl shadow-blue-500/25 flex items-center justify-center gap-3 cursor-pointer"
+                    className="w-full h-14 bg-[#8B6748] hover:bg-[#6B563E] text-white rounded-2xl text-base font-extrabold shadow-xl shadow-[#8B6748]/25 flex items-center justify-center gap-3 cursor-pointer"
                   >
                     {completingCheckIn ? (
                       <>
@@ -1234,16 +1196,16 @@ export default function CheckInVerification() {
                 </div>
               ) : !digitalKeyGenerated ? (
                 /* Step 4: Check-In Completed Animation Page */
-                <div className="bg-card border border-blue-500/30 rounded-3xl p-10 shadow-xl text-center max-w-xl mx-auto space-y-6 animate-in fade-in zoom-in duration-300">
+                <div className="bg-card border border-[#B89572]/30 rounded-3xl p-10 shadow-xl text-center max-w-xl mx-auto space-y-6 animate-in fade-in zoom-in duration-300">
                   <div className="relative w-24 h-24 mx-auto flex items-center justify-center">
-                    <span className="absolute inset-0 rounded-full bg-blue-500/20 animate-ping" />
-                    <div className="w-24 h-24 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-lg shadow-blue-600/30 z-10">
+                    <span className="absolute inset-0 rounded-full bg-[#B89572]/20 animate-ping" />
+                    <div className="w-24 h-24 rounded-full bg-[#8B6748] text-white flex items-center justify-center shadow-lg shadow-[#8B6748]/30 z-10">
                       <Sparkles className="w-12 h-12 animate-bounce" />
                     </div>
                   </div>
 
                   <div>
-                    <span className="text-xs font-extrabold tracking-widest uppercase text-blue-600 dark:text-blue-400 bg-blue-500/10 px-4 py-1.5 rounded-full">
+                    <span className="text-xs font-extrabold tracking-widest uppercase text-[#8B6748] dark:text-[#DDBC9E] bg-[#F3EDE4]/70 px-4 py-1.5 rounded-full">
                       {t("checkin.statusCheckedIn")}
                     </span>
                     <h2 className="text-2xl font-black text-foreground mt-4">{t("checkin.checkInSuccessTitle")}</h2>
@@ -1253,21 +1215,9 @@ export default function CheckInVerification() {
                   </div>
 
                   <Button
-                    onClick={() => {
-                      const resIdNum = Number(selectedResId) || 1;
-                      const roomNum = selectedReservation?.roomNumber || selectedReservation?.room?.room_number || selectedReservation?.room?.number || selectedReservation?.roomId || "101";
-                      const uniquePin = String((resIdNum * 147382 + 582910) % 900000 + 100000);
-                      setKeyDetails({
-                        digitalPin: uniquePin,
-                        lockId: `SL-ROOM-${roomNum}`,
-                        keyPayload: { encryptedKey: `a8f3b2e9c1d4e7f0a8b9c0d1e2f3a4b${resIdNum}` }
-                      });
-                      setDigitalKeyGenerated(true);
-                      toast.success("Digital Room Key generated successfully!");
-                      handleGenerateDigitalKey();
-                    }}
+                    onClick={handleGenerateDigitalKey}
                     disabled={generatingKey}
-                    className="w-full h-14 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-base font-extrabold shadow-xl shadow-blue-600/30 flex items-center justify-center gap-3 cursor-pointer"
+                    className="w-full h-14 bg-[#8B6748] hover:bg-[#6B563E] text-white rounded-2xl text-base font-extrabold shadow-xl shadow-[#8B6748]/30 flex items-center justify-center gap-3 cursor-pointer"
                   >
                     {generatingKey ? (
                       <>
@@ -1287,7 +1237,7 @@ export default function CheckInVerification() {
                     {/* Left Sidebar Card: Check-In Active */}
                     <div className="lg:col-span-4 bg-card border border-border rounded-3xl p-6 shadow-sm flex flex-col justify-between space-y-6">
                       <div className="text-center space-y-3 pt-4">
-                        <div className="w-16 h-16 rounded-full bg-blue-500/10 text-blue-600 flex items-center justify-center mx-auto border border-blue-500/20 shadow-xs">
+                        <div className="w-16 h-16 rounded-full bg-[#F3EDE4]/70 text-[#8B6748] flex items-center justify-center mx-auto border border-[#B89572]/30 shadow-xs">
                           <CheckCircle2 className="w-8 h-8" />
                         </div>
                         <div>

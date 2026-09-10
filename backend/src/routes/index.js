@@ -2,6 +2,7 @@ import express from 'express';
 
 // Middleware
 import { authenticateToken } from '../middleware/authMiddleware.js';
+import { authenticateTokenOrCheckInAccess } from '../utils/checkinAccess.js';
 import { requirePermission, requireAnyPermission, requireRole } from '../middleware/rbac.js';
 
 // Auth & Staff
@@ -97,6 +98,7 @@ import { getWeather } from '../controllers/weatherController.js';
 import { getRoomAvailability } from '../controllers/roomAvailabilityController.js';
 import {
   createBookingWithPayment,
+  getGuestCheckInAccess,
   verifyGuestId,
   processCheckInPayment,
   processManualCheckInPayment,
@@ -162,16 +164,17 @@ router.get('/approvals', authenticateToken, requireAnyPermission('reservations.a
 router.post('/approvals', authenticateToken, requireAnyPermission('reservations.cancel_request', 'payments.create'), createApprovalRequest);
 router.put('/approvals/:id/review', authenticateToken, requireAnyPermission('reservations.approve', 'expenses.approve'), reviewApprovalRequest);
 
-// ─── Check-In & Digital Lock Key Generation ────────────────
+// ─── Check-In & Digital Lock Key Generation (Protected / Verified) ─
 router.post('/checkin/book-with-payment', authenticateToken, requirePermission('checkin.perform'), createBookingWithPayment);
-router.post('/checkin/verify-id', authenticateToken, requirePermission('checkin.perform'), verifyGuestId);
-router.post('/checkin/process-payment', authenticateToken, requirePermission('checkin.perform'), processCheckInPayment);
+router.get('/checkin/access', getGuestCheckInAccess);
+router.post('/checkin/verify-id', authenticateTokenOrCheckInAccess, verifyGuestId);
+router.post('/checkin/process-payment', authenticateTokenOrCheckInAccess, processCheckInPayment);
 router.post('/checkin/manual-payment', authenticateToken, requirePermission('checkin.perform'), processManualCheckInPayment);
-router.post('/checkin/payment/order', authenticateToken, requirePermission('checkin.perform'), createPaymentOrder);
-router.post('/checkin/payment/verify', authenticateToken, requirePermission('checkin.perform'), verifyPayment);
-router.post('/checkin/generate-lock-key', authenticateToken, requirePermission('checkin.perform'), generateDigitalLockKey);
-router.post('/checkin/unlock-door', authenticateToken, requirePermission('checkin.perform'), unlockDoor);
-router.post('/checkin/complete', authenticateToken, requirePermission('checkin.perform'), completeGuestCheckIn);
+router.post('/checkin/payment/order', authenticateTokenOrCheckInAccess, createPaymentOrder);
+router.post('/checkin/payment/verify', authenticateTokenOrCheckInAccess, verifyPayment);
+router.post('/checkin/generate-lock-key', authenticateTokenOrCheckInAccess, generateDigitalLockKey);
+router.post('/checkin/unlock-door', authenticateTokenOrCheckInAccess, unlockDoor);
+router.post('/checkin/complete', authenticateTokenOrCheckInAccess, completeGuestCheckIn);
 
 // ─── Hotel Configuration (Admin only) ──────────────────────
 router.get('/hotel', authenticateToken, requirePermission('settings.view'), getHotelProfile);

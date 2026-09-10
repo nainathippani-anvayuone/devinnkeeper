@@ -1,11 +1,40 @@
-import { generateDigitalKeyPayload, LockService } from '../lock/lock.service.js';
+import { LockService } from '../lock/lock.service.js';
 import { sendCheckInEmail } from '../utils/emailNotifier.js';
 import { createPaymentOrderForReservation } from './razorpayController.js';
 import { prisma } from '../utils/db.js';
 import { createNotification, NotificationType, NotificationPriority } from '../utils/notificationService.js';
 import crypto from 'crypto';
+import { verifyDrivingLicenceWithGemini } from '../services/geminiVerificationService.js';
+import { verifyCheckInAccessToken } from '../utils/checkinAccess.js';
 
 const lockService = new LockService();
+
+export async function getGuestCheckInAccess(req, res) {
+  try {
+    const reservationId = Number(req.query?.resId || req.query?.reservationId);
+    const access = verifyCheckInAccessToken(req.query?.token, reservationId);
+    if (!Number.isInteger(reservationId) || !access) {
+      return res.status(401).json({ error: 'This check-in link is invalid or expired.' });
+    }
+
+    const reservation = await prisma.reservation.findUnique({
+      where: { id: reservationId },
+      include: { guest: true, room: true, payments: true },
+    });
+    if (!reservation || !reservation.guest || (access.guestId && Number(access.guestId) !== Number(reservation.guestId))) {
+      return res.status(404).json({ error: 'Reservation not found for this check-in link.' });
+    }
+
+    return res.json({
+      reservation: {
+        ...reservation,
+        roomNumber: reservation.room?.room_number || reservation.roomId,
+      },
+    });
+  } catch {
+    return res.status(500).json({ error: 'Unable to open this check-in link.' });
+  }
+}
 
 // Step 0: Create New Room Booking with Selected Room and Payment Gateway Details
 export async function createBookingWithPayment(req, res) {
@@ -94,18 +123,32 @@ export async function createBookingWithPayment(req, res) {
       }
     });
 
-    const { order, payment } = await createPaymentOrderForReservation(reservation);
-
-    // 4. Send Automated Check-In Link Email to Guest Email Address
+    // Send the check-in email only after the reservation has been committed.
     const guestRecipientEmail = email || guest?.email;
+    let emailDelivery;
     if (guestRecipientEmail) {
-      await sendCheckInEmail({
+      try {
+        const result = await sendCheckInEmail({
         guestEmail: guestRecipientEmail,
         guestName: `${firstName} ${lastName}`,
         reservationId: reservation.id,
+        guestId: guest.id,
         roomId: Number(roomId),
         checkInDate: parsedCheckIn
-      });
+        });
+        emailDelivery = {
+          success: result.success,
+          emailSent: result.emailSent === true,
+          category: result.category,
+          error: result.success ? undefined : result.error,
+          messageId: result.messageId,
+        };
+      } catch (error) {
+        emailDelivery = { success: false, emailSent: false, category: 'unknown', error: 'Unable to deliver the check-in email.' };
+        console.error('[CHECK-IN EMAIL] controller delivery failure:', error.message);
+      }
+    } else {
+      emailDelivery = { success: false, emailSent: false, category: 'invalid-recipient', error: 'Guest email address is missing or invalid.' };
     }
 
     // 5. Fire NEW_RESERVATION notification
@@ -125,11 +168,14 @@ export async function createBookingWithPayment(req, res) {
       console.error('[checkinController] NEW_RESERVATION notification failed:', notifErr.message);
     }
 
+    const { order, payment } = await createPaymentOrderForReservation(reservation);
+
     res.status(201).json({
       success: true,
       message: 'Room reserved successfully. Complete the Razorpay payment to confirm check-in.',
       reservation,
       payment,
+      emailDelivery,
       razorpay: {
         keyId: process.env.RAZORPAY_KEY_ID,
         orderId: order.id,
@@ -150,7 +196,6 @@ function compareFacesServer(dlData, selfieData) {
   const raw1 = dlData.includes('base64,') ? dlData.split('base64,')[1] : dlData;
   const raw2 = selfieData.includes('base64,') ? selfieData.split('base64,')[1] : selfieData;
 
-  // 1. Check exact base64 data match (Same uploaded image file)
   if (raw1.trim() === raw2.trim()) {
     return { isMatch: true, score: 100, reason: 'Identical image files verified successfully' };
   }
@@ -162,12 +207,10 @@ function compareFacesServer(dlData, selfieData) {
     return { isMatch: false, score: 20, reason: 'Image payload is invalid or empty' };
   }
 
-  // 2. Direct binary buffer equality check
   if (buf1.equals(buf2)) {
     return { isMatch: true, score: 100, reason: 'Identical byte match verified successfully' };
   }
 
-  // 3. Pixel byte stream similarity calculation across sampled chunks
   const sampleSize = Math.min(2000, buf1.length, buf2.length);
   const step1 = Math.max(1, Math.floor(buf1.length / sampleSize));
   const step2 = Math.max(1, Math.floor(buf2.length / sampleSize));
@@ -182,8 +225,6 @@ function compareFacesServer(dlData, selfieData) {
   }
 
   const similarityScore = Math.round((matchingBytes / sampleSize) * 100);
-
-  // Require at least 80% similarity threshold for different photos of the same person
   const isMatch = similarityScore >= 80;
 
   return {
@@ -193,7 +234,8 @@ function compareFacesServer(dlData, selfieData) {
   };
 }
 
-// Step 1: Verify Guest ID (Driver License + Selfie Biometric Matching)
+// Step 1: Verify the Driving Licence document with Gemini and fall back to
+// the existing biometric server comparison helper for compatibility.
 export async function verifyGuestId(req, res) {
   try {
     const { reservationId, guestId, dlImageUrl, selfieImageUrl } = req.body;
@@ -223,47 +265,39 @@ export async function verifyGuestId(req, res) {
       return res.status(400).json({ error: 'You have already checked-in' });
     }
 
-    if (!dlImageUrl || !selfieImageUrl || typeof dlImageUrl !== 'string' || typeof selfieImageUrl !== 'string') {
-      return res.status(400).json({ error: 'Both a valid Driver License ID photo and live Selfie photo are required for identity verification.' });
+    if (req.checkInAccess && Number(req.checkInAccess.reservationId) !== Number(existingRes.id)) {
+      return res.status(403).json({ error: 'This check-in link is not valid for the selected reservation.' });
     }
 
-    if (dlImageUrl.trim().length < 10 || selfieImageUrl.trim().length < 10) {
-      return res.status(400).json({ error: 'Provided ID document or selfie photo is invalid or empty.' });
+    let verification;
+    try {
+      verification = await verifyDrivingLicenceWithGemini({ imageData: dlImageUrl, guest: existingRes.guest });
+    } catch (verificationError) {
+      return res.status(400).json({
+        success: false,
+        verificationStatus: 'REJECTED',
+        error: verificationError.message || 'Unable to verify the Driving Licence.',
+      });
     }
 
-    // Run real server-side image comparison (Never trust client-side score overrides)
-    const comparison = compareFacesServer(dlImageUrl, selfieImageUrl);
-    const serverMatchScore = comparison.score;
-    const isVerified = comparison.isMatch;
+    if (typeof dlImageUrl !== 'string') {
+      return res.status(400).json({ error: 'A Driving Licence image is required.' });
+    }
 
-    // Store actual submitted ID and Selfie photo URLs safely without silent stock photo replacement
     const reservation = await prisma.reservation.update({
       where: { id: Number(reservationId) },
       data: {
         dlImageUrl: dlImageUrl.slice(0, 5000),
-        selfieImageUrl: selfieImageUrl.slice(0, 5000),
-        verificationStatus: isVerified ? 'VERIFIED' : 'REJECTED',
-        ...(isVerified && { status: 'confirmed' }),
+        selfieImageUrl: typeof selfieImageUrl === 'string' ? selfieImageUrl.slice(0, 5000) : null,
+        verificationStatus: verification.verified ? 'VERIFIED' : 'REJECTED',
       },
       include: { guest: true }
     });
 
-    if (isVerified && reservation.roomId) {
-      try {
-        await prisma.room.update({
-          where: { id: reservation.roomId },
-          data: { status: 'occupied', availability: false }
-        });
-      } catch (rErr) {
-        console.log('Room status update note:', rErr.message);
-      }
-    }
-
-    if (!isVerified) {
+    if (!verification.verified) {
       return res.status(400).json({
         success: false,
-        message: `Identity Verification Failed! Facial features between Driver License and Selfie do not match (Comparison Score: ${serverMatchScore}%, required 75%).`,
-        matchScore: `${serverMatchScore}%`,
+        message: verification.reason,
         verificationStatus: 'REJECTED',
         reservation
       });
@@ -271,8 +305,7 @@ export async function verifyGuestId(req, res) {
 
     res.json({
       success: true,
-      message: `Identity Verification Successful! Driver License and Selfie matched with server comparison score: ${serverMatchScore}%`,
-      matchScore: `${serverMatchScore}%`,
+      message: verification.reason,
       verificationStatus: reservation.verificationStatus,
       reservation
     });
@@ -296,6 +329,10 @@ export async function processCheckInPayment(req, res) {
 
     if (!reservation) {
       return res.status(404).json({ error: 'Reservation not found' });
+    }
+
+    if (req.checkInAccess && Number(req.checkInAccess.reservationId) !== reservationId) {
+      return res.status(403).json({ error: 'This check-in link is not valid for the selected reservation.' });
     }
 
     if (reservation.verificationStatus !== 'VERIFIED') {
@@ -379,7 +416,26 @@ export async function processManualCheckInPayment(req, res) {
   }
 }
 
-// Complete Guest Check-In Endpoint
+async function issueDigitalKey(reservation) {
+  if (reservation.digitalKeyStatus === 'ACTIVE' && reservation.digitalKey && reservation.digitalPin && reservation.lockId) {
+    return {
+      digitalPin: reservation.digitalPin,
+      lockId: reservation.lockId,
+      keyPayload: JSON.parse(reservation.digitalKey),
+    };
+  }
+
+  const roomNumber = reservation.roomId ? `ROOM-${reservation.roomId}` : 'ROOM-101';
+  const lockId = `LOCK-${roomNumber}-${crypto.randomBytes(8).toString('hex')}`;
+  const digitalPin = crypto.randomInt(100000, 1000000).toString();
+  const validFrom = new Date();
+  const validUntil = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
+  const keyPayload = lockService.generateDigitalKeyPayload(String(reservation.id), lockId, validFrom, validUntil);
+
+  return { digitalPin, lockId, keyPayload };
+}
+
+// Complete Guest Check-In Endpoint. This is the only endpoint that changes a reservation to checked_in.
 export async function completeGuestCheckIn(req, res) {
   try {
     const { reservationId } = req.body;
@@ -396,14 +452,29 @@ export async function completeGuestCheckIn(req, res) {
       return res.status(404).json({ error: 'Reservation not found' });
     }
 
-    // Accept any confirmed payment toward this reservation - Razorpay (gatewayStatus
-    // 'captured') or a manual/cash payment recorded at the front desk (gatewayStatus 'manual').
+    if (!reservation.guest || !reservation.guestId) {
+      return res.status(400).json({ error: 'This reservation has no associated guest.' });
+    }
+
+    if (req.checkInAccess && Number(req.checkInAccess.guestId) !== Number(reservation.guestId)) {
+      return res.status(403).json({ error: 'This check-in link does not belong to the reservation guest.' });
+    }
+
+    if (reservation.status === 'checked_in') {
+      return res.status(409).json({ error: 'This reservation is already checked in.' });
+    }
+
+    const paymentWhere = {
+      reservationId: reservation.id,
+      paymentStatus: 'Paid',
+      OR: [
+        { gatewayStatus: 'captured', razorpayPaymentId: { not: null } },
+        ...(req.user ? [{ gatewayStatus: 'manual' }] : []),
+      ],
+    };
     const paidPayments = await prisma.payment.aggregate({
       _sum: { amount: true },
-      where: {
-        reservationId: reservation.id,
-        paymentStatus: 'Paid',
-      },
+      where: paymentWhere,
     });
     const paidAmount = Number(paidPayments._sum.amount || 0);
     const totalCharges = Number(reservation.totalCharges);
@@ -412,16 +483,20 @@ export async function completeGuestCheckIn(req, res) {
     }
 
     if (reservation.verificationStatus !== 'VERIFIED') {
-      return res.status(400).json({ error: 'Identity Verification (Driver License & Selfie) must be completed before finalizing check-in.' });
+      return res.status(400).json({ error: 'Driving Licence verification must be completed before finalizing check-in.' });
     }
 
-    // 1. Update reservation status to checked_in
+    const key = await issueDigitalKey(reservation);
     const updated = await prisma.reservation.update({
       where: { id: Number(reservationId) },
       data: {
         status: 'checked_in',
         verificationStatus: 'VERIFIED',
         paidAmount,
+        digitalPin: key.digitalPin,
+        digitalKey: JSON.stringify(key.keyPayload),
+        digitalKeyStatus: 'ACTIVE',
+        lockId: key.lockId,
       },
       include: { guest: true }
     });
@@ -460,6 +535,7 @@ export async function completeGuestCheckIn(req, res) {
     res.json({
       success: true,
       message: `Check-in completed for ${gName}! Status set to Checked-In.`,
+      ...key,
       reservation: updated
     });
   } catch (err) {
@@ -467,114 +543,9 @@ export async function completeGuestCheckIn(req, res) {
   }
 }
 
-// Step 2: Complete Check-in & Issue Digital Lock Key & 6-digit PIN
+// Backward-compatible endpoint: key issuance is now part of completeGuestCheckIn.
 export async function generateDigitalLockKey(req, res) {
-  try {
-    const { reservationId, guestId } = req.body;
-
-    if (!reservationId) {
-      return res.status(400).json({ error: 'Reservation ID is required' });
-    }
-
-    const reservation = await prisma.reservation.findUnique({
-      where: { id: Number(reservationId) },
-      include: { guest: true }
-    });
-
-    if (!reservation) {
-      return res.status(404).json({ error: 'Reservation not found' });
-    }
-
-    if (!reservation.guest || !reservation.guestId) {
-      return res.status(400).json({ error: 'This guest is not included in the selected reservation and cannot check in.' });
-    }
-
-    if (guestId && Number(guestId) !== Number(reservation.guestId)) {
-      return res.status(400).json({ error: 'This guest is not included in the selected reservation and cannot check in.' });
-    }
-
-    if (reservation.verificationStatus !== 'VERIFIED') {
-      return res.status(400).json({ error: 'ID Verification (Driving License & Selfie) must be completed before generating room lock key.' });
-    }
-
-    const paidPayments = await prisma.payment.aggregate({
-      _sum: { amount: true },
-      where: {
-        reservationId: reservation.id,
-        paymentStatus: 'Paid',
-        gatewayStatus: 'captured',
-        razorpayPaymentId: { not: null },
-      },
-    });
-    const paidAmount = Number(paidPayments._sum.amount || 0);
-    const totalCharges = Number(reservation.totalCharges);
-    if (!Number.isFinite(totalCharges) || totalCharges <= 0 || paidAmount < totalCharges) {
-      return res.status(402).json({ error: 'Verified payment is required before generating a room lock key.' });
-    }
-
-    const roomNumber = reservation.roomId ? `ROOM-${reservation.roomId}` : 'ROOM-101';
-    const lockId = `LOCK-${roomNumber}-${crypto.randomBytes(8).toString('hex')}`;
-    
-    // Generate 6-digit access PIN
-    const digitalPin = Math.floor(100000 + Math.random() * 900000).toString();
-
-    // Generate encrypted digital key payload using LockService
-    const validFrom = new Date();
-    const validUntil = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000); // 3 days access
-    const keyPayload = lockService.generateDigitalKeyPayload(String(reservation.id), lockId, validFrom, validUntil);
-
-    const updated = await prisma.reservation.update({
-      where: { id: Number(reservationId) },
-      data: {
-        status: 'checked_in',
-        verificationStatus: 'VERIFIED',
-        digitalPin,
-        digitalKey: JSON.stringify(keyPayload),
-        digitalKeyStatus: 'ACTIVE',
-        lockId
-      },
-      include: { guest: true }
-    });
-
-    // Update room status to occupied if room is assigned
-    if (reservation.roomId) {
-      try {
-        await prisma.room.update({
-          where: { id: reservation.roomId },
-          data: { status: 'occupied', availability: false }
-        });
-      } catch (rErr) {
-        console.log('Room status update note:', rErr.message);
-      }
-    }
-
-    // Ensure payment record exists for checked-in guest
-    const existingPayment = await prisma.payment.findFirst({ where: { reservationId: Number(reservationId) } });
-    if (!existingPayment) {
-      const gName = reservation.guest ? `${reservation.guest.firstName} ${reservation.guest.lastName}`.trim() : 'Guest';
-      const amountPaid = reservation.paidAmount || reservation.totalCharges || 299;
-      await prisma.payment.create({
-        data: {
-          reservationId: Number(reservationId),
-          amount: amountPaid,
-          method: 'Credit Card',
-          paymentStatus: 'Paid',
-          notes: `Check-in completed payment for ${gName} (Reservation #${reservation.id})`
-        }
-      });
-    }
-
-    res.json({
-      success: true,
-      message: 'Check-in completed and Digital Key generated!',
-      digitalPin,
-      lockId,
-      keyPayload,
-      reservation: updated
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  return completeGuestCheckIn(req, res);
 }
 
 // Step 3: Simulate Room Door Unlock using Key / PIN

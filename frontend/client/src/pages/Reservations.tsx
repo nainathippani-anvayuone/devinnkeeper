@@ -33,7 +33,7 @@ const COUNTRY_CODES = [
   { code: "DE", name: "Germany", flag: "🇩🇪", dialCode: "+49", digitsLength: 11, placeholder: "15123456789" },
 ];
 const STATUS_COLORS: Record<string, string> = {
-  confirmed: "bg-blue-100 text-blue-700",
+  confirmed: "bg-[#F3EDE4] text-[#8B6748]",
   checked_in: "bg-green-100 text-green-700",
   checked_out: "bg-slate-100 text-slate-600",
   cancelled: "bg-red-100 text-red-600",
@@ -132,10 +132,17 @@ export default function ReservationsPage() {
 
   const createM = useMutation({
     mutationFn: (d: any) => apiClient.reservations.create(d),
-    onSuccess: () => {
+    onSuccess: (response: any) => {
       qc.invalidateQueries({ queryKey: ["reservations"] });
       qc.invalidateQueries({ queryKey: ["vehicles"] });
-      toast.success("Reservation created successfully");
+      const emailDelivery = response?.data?.emailDelivery;
+      if (emailDelivery?.emailSent) {
+        toast.success("Reservation created and check-in email sent");
+      } else if (emailDelivery) {
+        toast.warning(`Reservation created, but check-in email was not sent: ${emailDelivery.error || "SMTP delivery failed."}`);
+      } else {
+        toast.success("Reservation created successfully");
+      }
       setDialogOpen(false);
     },
     onError: (e: any) => toast.error(e?.response?.data?.error || "Failed to create reservation"),
@@ -702,7 +709,7 @@ className="h-10 min-w-0 flex-1 border-0 rounded-l-none pl-3 shadow-none focus-vi
                 <Button type="button" variant="outline" className="h-11 rounded-2xl border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-medium px-6 shadow-2xs w-full sm:w-auto cursor-pointer" onClick={() => setDialogOpen(false)}>
                   {t("common.cancel")}
                 </Button>
-                <Button type="submit" className="h-11 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 shadow-md shadow-blue-500/20 w-full sm:w-auto cursor-pointer" disabled={createM.isPending || updateM.isPending}>
+                <Button type="submit" className="h-11 rounded-2xl bg-[#8B6748] hover:bg-[#6B563E] text-white font-semibold px-6 shadow-md shadow-[#8B6748]/20 w-full sm:w-auto cursor-pointer" disabled={createM.isPending || updateM.isPending}>
                   {createM.isPending || updateM.isPending ? t("common.saving") : t("reservations.saveReservationButton")}
                 </Button>
               </div>

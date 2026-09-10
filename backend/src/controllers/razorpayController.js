@@ -73,6 +73,10 @@ export async function createPaymentOrder(req, res) {
       return res.status(404).json({ error: 'Reservation not found' });
     }
 
+    if (req.checkInAccess && Number(req.checkInAccess.reservationId) !== reservationId) {
+      return res.status(403).json({ error: 'This check-in link is not valid for the selected reservation.' });
+    }
+
     const { order, payment } = await createPaymentOrderForReservation(reservation);
 
     return res.status(201).json({
@@ -91,6 +95,7 @@ export async function createPaymentOrder(req, res) {
 
 export async function verifyPayment(req, res) {
   try {
+    const requestedReservationId = parseReservationId(req.body?.reservationId);
     const razorpayOrderId = req.body?.razorpayOrderId || req.body?.razorpay_order_id;
     const razorpayPaymentId = req.body?.razorpayPaymentId || req.body?.razorpay_payment_id;
     const razorpaySignature = req.body?.razorpaySignature || req.body?.razorpay_signature;
@@ -106,6 +111,13 @@ export async function verifyPayment(req, res) {
     });
     if (!payment) {
       return res.status(404).json({ error: 'Razorpay order not found' });
+    }
+
+    if (requestedReservationId && Number(payment.reservationId) !== requestedReservationId) {
+      return res.status(403).json({ error: 'This payment does not belong to the selected reservation.' });
+    }
+    if (req.checkInAccess && Number(req.checkInAccess.reservationId) !== Number(payment.reservationId)) {
+      return res.status(403).json({ error: 'This check-in link is not valid for the payment reservation.' });
     }
 
     const isValid = verifyRazorpayPaymentSignature({

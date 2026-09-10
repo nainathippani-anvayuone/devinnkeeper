@@ -250,21 +250,33 @@ export async function createReservation(req, res) {
       }
     }
 
+    let emailDelivery;
     if (reservation.guest?.email) {
       try {
-        await sendCheckInEmail({
+        const result = await sendCheckInEmail({
           guestEmail: reservation.guest.email,
           guestName: `${reservation.guest.firstName} ${reservation.guest.lastName}`,
+          guestId: reservation.guestId,
           reservationId: reservation.id,
           roomId: reservation.roomId,
           checkInDate: reservation.checkIn
         });
+        emailDelivery = {
+          success: result.success,
+          emailSent: result.emailSent === true,
+          category: result.category,
+          error: result.success ? undefined : result.error,
+          messageId: result.messageId,
+        };
       } catch (e) {
-        console.error('CheckIn email failed to send:', e.message);
+        emailDelivery = { success: false, emailSent: false, category: 'unknown', error: 'Unable to deliver the check-in email.' };
+        console.error('[CHECK-IN EMAIL] controller delivery failure:', e.message);
       }
+    } else {
+      emailDelivery = { success: false, emailSent: false, category: 'invalid-recipient', error: 'Guest email address is missing or invalid.' };
     }
 
-    res.status(201).json(reservation);
+    res.status(201).json({ ...reservation, emailDelivery });
   } catch (err) {
     console.error('createReservation error:', err);
     res.status(500).json({ error: 'An internal error occurred while processing your request.' });

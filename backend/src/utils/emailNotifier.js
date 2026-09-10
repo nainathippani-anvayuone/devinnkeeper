@@ -1,44 +1,107 @@
-/**
- * Send automated express check-in confirmation email to guest
- */
-export async function sendCheckInEmail({ guestEmail, guestName, reservationId, roomId, checkInDate }) {
+import { createCheckInAccessToken } from './checkinAccess.js';
+
+function maskEmail(email) {
+  const [local, domain] = String(email || '').split('@');
+  if (!local || !domain) return '<invalid-email>';
+  return `${local.slice(0, 2)}***@${domain}`;
+}
+
+function classifySmtpError(error) {
+  const code = String(error?.code || '').toUpperCase();
+  const responseCode = Number(error?.responseCode || 0);
+  if (code.includes('AUTH') || responseCode === 535 || responseCode === 534) return 'authentication';
+  if (code.includes('ECONN') || code.includes('ETIMEDOUT') || code.includes('ENOTFOUND')) return 'connection';
+  if (responseCode >= 400 && responseCode < 500) return 'smtp-client';
+  if (responseCode >= 500) return 'smtp-server';
+  return 'unknown';
+}
+
+function getSmtpConfig() {
+  const missing = ['SMTP_HOST', 'SMTP_USER', 'SMTP_PASS'].filter((name) => !String(process.env[name] || '').trim());
+  if (missing.length) {
+    return { error: 'SMTP credentials are not configured.', missing };
+  }
+
+  return {
+    host: process.env.SMTP_HOST,
+    port: Number(process.env.SMTP_PORT) || 587,
+    secure: process.env.SMTP_SECURE === 'true',
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+    from: process.env.SMTP_FROM || process.env.SMTP_USER,
+  };
+}
+
+async function createVerifiedTransporter() {
+  const config = getSmtpConfig();
+  if (config.error) return config;
+
+  const nodemailer = await import('nodemailer');
+  const transporter = nodemailer.createTransport({
+    host: config.host,
+    port: config.port,
+    secure: config.secure,
+    auth: { user: config.user, pass: config.pass },
+  });
+
   try {
+    await transporter.verify();
+    return { transporter, from: config.from };
+  } catch (error) {
+    return {
+      error: 'SMTP connection or authentication failed.',
+      category: classifySmtpError(error),
+    };
+  }
+}
+
+export async function verifyEmailTransport() {
+  const result = await createVerifiedTransporter();
+  if (result.error) {
+    console.error(`[CHECK-IN EMAIL] SMTP verification failed: category=${result.category || 'configuration'} error=${result.error}`);
+    return { success: false, error: result.error, category: result.category || 'configuration' };
+  }
+
+  console.log('[CHECK-IN EMAIL] SMTP transporter verified successfully.');
+  return { success: true };
+}
+
+/** Send the reservation-specific guest check-in link. */
+export async function sendCheckInEmail({ guestEmail, guestName, guestId, reservationId, roomId, checkInDate }) {
+  const recipient = maskEmail(guestEmail);
+  console.log(`[CHECK-IN EMAIL] send attempted recipient=${recipient} reservation=${reservationId}`);
+
+  try {
+    const normalizedEmail = String(guestEmail || '').trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+      const error = 'Guest email address is missing or invalid.';
+      console.error(`[CHECK-IN EMAIL] failed recipient=${recipient} category=invalid-recipient error=${error}`);
+      return { success: false, emailSent: false, error, category: 'invalid-recipient' };
+    }
+
     const appBaseUrl = process.env.APP_BASE_URL || 'http://localhost:5173';
-    const checkInUrl = `${appBaseUrl}/checkin?resId=${reservationId}`;
+    const checkInToken = createCheckInAccessToken({
+      reservationId,
+      guestId,
+    });
+    const checkInUrl = `${appBaseUrl.replace(/\/$/, '')}/checkin?resId=${reservationId}&token=${encodeURIComponent(checkInToken)}`;
 
-    // Log email notification for verification in logs
-    console.log(`\n======================================================`);
-    console.log(`[AUTOMATED CHECK-IN EMAIL SENT]`);
-    console.log(`To: ${guestEmail}`);
-    console.log(`Subject: Express Contactless Check-In Ready for Reservation #${reservationId}`);
-    console.log(`Dear ${guestName}, your room (Room #${roomId || 101}) check-in link is live.`);
-    console.log(`Complete ID verification & get room digital key pass here: ${checkInUrl}`);
-    console.log(`======================================================\n`);
+    const smtp = await createVerifiedTransporter();
+    if (smtp.error) {
+      console.error(`[CHECK-IN EMAIL] failed recipient=${maskEmail(normalizedEmail)} category=${smtp.category || 'configuration'} error=${smtp.error}`);
+      return { success: false, emailSent: false, checkInUrl, error: smtp.error, category: smtp.category || 'configuration' };
+    }
 
-    // If SMTP credentials configured in .env, send real email via Nodemailer
-    if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
-      try {
-        const nodemailer = await import('nodemailer');
-        const transporter = nodemailer.createTransport({
-          host: process.env.SMTP_HOST,
-          port: Number(process.env.SMTP_PORT) || 587,
-          secure: process.env.SMTP_SECURE === 'true',
-          auth: {
-            user: process.env.SMTP_USER,
-            pass: process.env.SMTP_PASS,
-          },
-        });
-
-        await transporter.sendMail({
-          from: `"InnKeeper Motel Front Desk" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
-          to: guestEmail,
+    const mailInfo = await smtp.transporter.sendMail({
+          from: `"InnKeeper Motel Front Desk" <${smtp.from}>`,
+          to: normalizedEmail,
           subject: `Complete Your Express Room Check-In (Reservation #${reservationId})`,
           html: `
             <div style="font-family: Arial, sans-serif; padding: 20px; background-color: #f8fafc; color: #1e293b;">
               <div style="max-width: 600px; margin: 0 auto; background: #ffffff; padding: 24px; border-radius: 16px; border: 1px solid #e2e8f0;">
                 <h2 style="color: #059669; margin-top: 0;">Welcome to InnKeeper Motel!</h2>
                 <p>Hello <strong>${guestName}</strong>,</p>
-                <p>Your contactless room check-in is now open. Complete your Driving License & Selfie verification to unlock your digital room key pass.</p>
+                <p>Complete your Driving Licence verification, Razorpay payment, and check-in to receive your digital room key.</p>
                 <div style="background-color: #f1f5f9; padding: 16px; border-radius: 12px; margin: 20px 0;">
                   <p style="margin: 4px 0;"><strong>Reservation ID:</strong> #${reservationId}</p>
                   <p style="margin: 4px 0;"><strong>Room Assigned:</strong> Room #${roomId || 101}</p>
@@ -53,16 +116,14 @@ export async function sendCheckInEmail({ guestEmail, guestName, reservationId, r
               </div>
             </div>
           `,
-        });
-      } catch (smtpErr) {
-        console.log('[SMTP Transporter Note]:', smtpErr.message);
-      }
-    }
+    });
 
-    return { success: true, email: guestEmail, checkInUrl };
+    console.log(`[CHECK-IN EMAIL] sent recipient=${maskEmail(normalizedEmail)} reservation=${reservationId} messageId=${mailInfo.messageId}`);
+    return { success: true, emailSent: true, email: normalizedEmail, checkInUrl, messageId: mailInfo.messageId };
   } catch (err) {
-    console.error('Email sending error:', err);
-    return { success: false, error: err.message };
+    const category = classifySmtpError(err);
+    console.error(`[CHECK-IN EMAIL] failed recipient=${recipient} reservation=${reservationId} category=${category} error=Unable to deliver the check-in email.`);
+    return { success: false, emailSent: false, error: 'Unable to deliver the check-in email.', category };
   }
 }
 
@@ -80,9 +141,10 @@ export async function sendPasswordResetEmail({ toEmail, resetToken }) {
     const smtpPort = Number(process.env.EMAIL_PORT || process.env.SMTP_PORT || 587);
     const smtpUser = process.env.EMAIL_USER || process.env.SMTP_USER;
     const smtpPass = process.env.EMAIL_PASSWORD || process.env.SMTP_PASS;
+    const smtpFrom = process.env.EMAIL_FROM || process.env.SMTP_FROM || smtpUser;
 
-    if (!smtpUser || !smtpPass) {
-      console.error(`[Email Service] SMTP Error: EMAIL_USER or EMAIL_PASSWORD missing in .env`);
+    if (!smtpHost || !smtpUser || !smtpPass) {
+      console.error(`[Email Service] SMTP Error: SMTP credentials missing in .env`);
       return { success: false, error: 'SMTP credentials missing' };
     }
 
@@ -90,7 +152,7 @@ export async function sendPasswordResetEmail({ toEmail, resetToken }) {
     const transporter = nodemailer.createTransport({
       host: smtpHost,
       port: smtpPort,
-      secure: process.env.EMAIL_SECURE === 'true' || smtpPort === 465,
+      secure: process.env.EMAIL_SECURE === 'true' || process.env.SMTP_SECURE === 'true' || smtpPort === 465,
       auth: {
         user: smtpUser,
         pass: smtpPass,
@@ -98,7 +160,7 @@ export async function sendPasswordResetEmail({ toEmail, resetToken }) {
     });
 
     const mailInfo = await transporter.sendMail({
-      from: `"InnKeeper Portal Support" <${process.env.EMAIL_FROM || process.env.SMTP_FROM || smtpUser}>`,
+      from: `"InnKeeper Portal Support" <${smtpFrom}>`,
       to: toEmail,
       subject: 'Reset Your InnKeeper Account Password',
       html: `
