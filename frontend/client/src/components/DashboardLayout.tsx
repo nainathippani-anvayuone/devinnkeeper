@@ -136,7 +136,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* Scroll Progress Bar */}
       <div className="fixed top-0 left-0 right-0 h-[3px] z-[9999] pointer-events-none bg-border/20">
         <div
-          className="h-full bg-gradient-to-r from-sky-500 via-indigo-500 to-amber-500 transition-all duration-150 ease-out"
+          className="h-full bg-gradient-to-r from-[#8B6748] via-[#C4A882] to-[#D6B98F] transition-all duration-150 ease-out"
           style={{ width: `${scrollProgress}%` }}
         />
       </div>
@@ -219,8 +219,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 title={translatedLabel}
                 className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-all duration-150 cursor-pointer ${
                   isActive
-                    ? "bg-primary text-primary-foreground shadow-sm font-semibold"
-                    : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                    ? "bg-[#8B6748] text-white shadow-sm font-semibold"
+                    : "text-muted-foreground hover:bg-[#F3EDE4] hover:text-[#3F352D]"
                 }`}
               >
                 <item.icon className="h-4.5 w-4.5 shrink-0" />

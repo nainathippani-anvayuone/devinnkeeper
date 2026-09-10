@@ -158,7 +158,7 @@ export default function Dashboard() {
 
   const statusColors: Record<string, string> = {
     vacant: "bg-emerald-500",
-    occupied: "bg-blue-500",
+    occupied: "bg-[#8B6748]",
     dirty: "bg-amber-500",
     maintenance: "bg-red-500",
     reserved: "bg-purple-500",
@@ -211,15 +211,15 @@ export default function Dashboard() {
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35, ease: "easeOut" }}
-        className="rounded-[2rem] border border-border bg-card/85 p-5 shadow-xs backdrop-blur-xl card-hover-lift"
+        className="rounded-[2rem] border border-[#C4A882] bg-gradient-to-r from-[#F9F2EA] via-[#F3EDE4] to-[#FFFDF8] p-5 shadow-sm backdrop-blur-xl card-hover-lift"
       >
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <div className="mb-2 flex items-center gap-2 text-sm font-medium text-sky-700 dark:text-sky-400">
+            <div className="mb-2 flex items-center gap-2 text-sm font-medium text-[#8B6748] dark:text-[#D6B98F]">
               <Sparkles className="h-4 w-4" />
               <span>{t("dashboard.subtitle")}</span>
             </div>
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">{t("dashboard.title")}</h1>
+            <h1 className="text-2xl font-black tracking-tight text-[#4B3628] dark:text-[#F5EBDD]">{t("dashboard.title")}</h1>
             <p className="mt-1 text-xs sm:text-sm text-muted-foreground">
               {getDashboardLocaleDate()}
             </p>
@@ -229,10 +229,10 @@ export default function Dashboard() {
             {/* Role Quick Action Shortcuts */}
             {currentRole === "receptionist" && (
               <>
-                <Button size="sm" onClick={() => setLocation("/checkin")} className="rounded-xl font-bold text-xs bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 cursor-pointer">
+                <Button size="sm" onClick={() => setLocation("/checkin")} className="rounded-xl font-bold text-xs bg-[#8B6748] hover:bg-[#725137] text-white gap-1.5 cursor-pointer">
                   <ShieldCheck className="h-3.5 w-3.5" /> Check-In Guest
                 </Button>
-                <Button size="sm" variant="outline" onClick={() => setLocation("/reservations")} className="rounded-xl font-bold text-xs gap-1.5 cursor-pointer">
+                <Button size="sm" variant="outline" onClick={() => setLocation("/reservations")} className="rounded-xl font-bold text-xs gap-1.5 cursor-pointer border-[#8B6748] text-[#8B6748] hover:bg-[#F3EDE4]">
                   <Calendar className="h-3.5 w-3.5" /> Bookings
                 </Button>
               </>
